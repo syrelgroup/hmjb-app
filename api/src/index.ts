@@ -18,6 +18,9 @@ import visitRoute from "./modules/visit/routes.js";
 import debiturRoute from "./modules/debitur/routes.js";
 import absConfigRoute from "./modules/absence_config/routes.js";
 import absenceRoute from "./modules/absence/routes.js";
+import absenceReportRoute from "./modules/absence_report/routes.js";
+import permitAbsenceRoute from "./modules/permit_absence/routes.js";
+import insentifRoute from "./modules/insentif/routes.js";
 import permitDownloadRoute from "./modules/permit_download/routes.js";
 import permitDeleteRoute from "./modules/permit_delete/routes.js";
 import guestBookRoute from "./modules/guestbook/routes.js";
@@ -82,6 +85,9 @@ app.use("/visit", middleware, visitRoute);
 // ABSENSI
 app.use("/absence_config", middleware, absConfigRoute);
 app.use("/absence", middleware, absenceRoute);
+app.use("/absence_report", middleware, absenceReportRoute);
+app.use("/permit_absence", middleware, permitAbsenceRoute);
+app.use("/insentif", middleware, insentifRoute);
 
 // BUKU TAMU
 app.use("/guestbook", middleware, guestBookRoute);

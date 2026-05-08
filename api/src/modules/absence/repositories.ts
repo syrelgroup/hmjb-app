@@ -47,7 +47,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       skip,
       take: limit,
       orderBy: { check_in: "desc" },
-      include: { User: true, PermitAbsence: true },
+      include: { User: true },
     });
 
     const total = await prisma.absence.count({ where });
@@ -131,7 +131,6 @@ export const DELETE = async (
     if (!find) return ResponseServer(res, 404, { msg: "Not found data" });
 
     await prisma.$transaction(async (tx) => {
-      await tx.permitAbsence.deleteMany({ where: { absenceId: find.id } });
       await tx.absence.delete({ where: { id: find.id } });
     });
 

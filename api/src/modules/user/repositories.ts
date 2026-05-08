@@ -51,7 +51,8 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
 
 export const POST = async (req: Request, res: Response, next: NextFunction) => {
   let body = req.body;
-  const { id, UserCost, Absence, Position, Role, ...usersaved } = body;
+  const { id, UserCost, Absence, Position, Role, PermitAbsence, ...usersaved } =
+    body;
   try {
     const genId = await generateId();
     const hashed = await bcrypt.hash(usersaved.password, 10);
@@ -81,7 +82,8 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
 export const PUT = async (req: Request, res: Response, next: NextFunction) => {
   let { id } = req.query;
   let body = req.body;
-  const { UserCost, Absence, Position, Role, ...usersaved } = body;
+  const { UserCost, Absence, Position, Role, PermitAbsence, ...usersaved } =
+    body;
 
   try {
     if (!id)

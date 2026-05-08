@@ -23,6 +23,7 @@ export default function AbsenceConfig() {
   const { message } = App.useApp();
 
   const getAddress = async (lat: number, lon: number) => {
+    setLoading(true);
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
     const response = await fetch(url, {
       headers: {
@@ -31,6 +32,7 @@ export default function AbsenceConfig() {
     });
     const data = await response.json();
     setAddress(data.display_name);
+    setLoading(false);
   };
 
   const handleGetLocation = async () => {
@@ -100,7 +102,7 @@ export default function AbsenceConfig() {
         await getAddress(lat, lon);
       })();
     }
-  });
+  }, [absence_config?.geo_status, absence_config?.geo_location]);
 
   return (
     <div className="space-y-2">

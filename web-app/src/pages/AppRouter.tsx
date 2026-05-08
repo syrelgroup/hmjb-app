@@ -38,6 +38,10 @@ import PermitDelete from "./earsip/PermitDelete";
 import UpsertVisitPlan from "./creport/UpsertVisitPlan";
 import UpdateVisitPlan from "./creport/UpdateVisitPlan";
 import AbsenceConfig from "./absensi/AbsenceConfig";
+import PermitAbsence from "./absensi/PermitAbsence";
+import DailyReportAbsence from "./absensi/DailyReportAbsence";
+import InsentifPage from "./absensi/Insentif";
+import DashboardAbsensi from "./absensi/DashboardAbsensi";
 
 function AppRouter() {
   const path = window.location.pathname;
@@ -117,7 +121,11 @@ function AppRouter() {
           <Route path="/callreport/visit/:id" element={<DetailVisit />} />
 
           {/* ABSENSI */}
+          <Route path="/absensi/" element={<DashboardAbsensi />} />
           <Route path="/absensi/config" element={<AbsenceConfig />} />
+          <Route path="/absensi/permit" element={<PermitAbsence />} />
+          <Route path="/absensi/report" element={<DailyReportAbsence />} />
+          <Route path="/absensi/insentif" element={<InsentifPage />} />
 
           {/* GUESTBOOK */}
           <Route path="/guestbook/" element={<DashboardGuestBook />} />

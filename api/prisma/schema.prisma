@@ -37,22 +37,19 @@ enum ECostType {
 }
 
 enum EAbsenceStatus {
+  ALPHA
   HADIR
   TERLAMBAT
   CUTI
   PERDIN
   SAKIT
   LEMBUR
+  PULANG_CEPAT
 }
 
 enum EGBookStatus {
   AKANDATANG
   TELAHDATANG
-}
-
-enum EPayrollStatus {
-  DRAFT
-  DISETUJUI
 }
 
 model Role {
@@ -93,28 +90,30 @@ model User {
   face         String? @db.Text
   photo        String?
 
-  status             Boolean             @default(true)
-  created_at         DateTime            @default(now())
-  updated_at         DateTime            @default(now())
-  Position           Position            @relation(fields: [positionId], references: [id], onUpdate: Cascade)
-  Role               Role                @relation(fields: [roleId], references: [id], onUpdate: Cascade)
-  SubmissionCreated  Submission[]        @relation("SubmissionCreated")
-  CollateralCreated  CollateralLending[] @relation("CollateralCreated")
-  CollateralApprover CollateralLending[] @relation("CollateralApprover")
-  VisitApprover      Visit[]             @relation("VisitApprover")
-  InsentifApprover   Insentif[]          @relation("InsentifApprover")
-  ReuestMade         PermitFile[]        @relation("RequesterRelation")
-  ApprovMade         PermitFile[]        @relation("ApproverRelation")
-  PayrollApprover    Payroll[]           @relation("PayrollApprover")
-  Insentif           Insentif[]
-  Submission         Submission[]
-  LogActivities      LogActivities[]
-  Visit              Visit[]
-  UserCost           UserCost[]
-  Absence            Absence[]
-  Payroll            Payroll[]
-  roleId             String
-  positionId         String
+  status                Boolean             @default(true)
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @default(now())
+  Position              Position            @relation(fields: [positionId], references: [id], onUpdate: Cascade)
+  Role                  Role                @relation(fields: [roleId], references: [id], onUpdate: Cascade)
+  SubmissionCreated     Submission[]        @relation("SubmissionCreated")
+  CollateralCreated     CollateralLending[] @relation("CollateralCreated")
+  CollateralApprover    CollateralLending[] @relation("CollateralApprover")
+  VisitApprover         Visit[]             @relation("VisitApprover")
+  InsentifApprover      Insentif[]          @relation("InsentifApprover")
+  PermitAbsenceApprover PermitAbsence[]     @relation("PermitAbsenceApprover")
+  ReuestMade            PermitFile[]        @relation("RequesterRelation")
+  ApprovMade            PermitFile[]        @relation("ApproverRelation")
+  PayrollApprover       Payroll[]           @relation("PayrollApprover")
+  Insentif              Insentif[]
+  Submission            Submission[]
+  LogActivities         LogActivities[]
+  Visit                 Visit[]
+  UserCost              UserCost[]
+  Absence               Absence[]
+  Payroll               Payroll[]
+  roleId                String
+  positionId            String
+  PermitAbsence         PermitAbsence[]
 }
 
 model SubmissionType {
@@ -400,14 +399,15 @@ model Absence {
   late_deduction       Int            @default(0)
   fast_leave_deduction Int            @default(0)
   lemburan             Int            @default(0)
+  alpha_deduction      Int            @default(0)
   absence_status       EAbsenceStatus @default(HADIR)
+  description          String?
 
-  status        Boolean         @default(false)
-  created_at    DateTime        @default(now())
-  updated_at    DateTime        @default(now())
-  User          User            @relation(fields: [userId], references: [id], onUpdate: Cascade)
-  userId        String
-  PermitAbsence PermitAbsence[]
+  status     Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  User       User     @relation(fields: [userId], references: [id], onUpdate: Cascade)
+  userId     String
 }
 
 model PermitAbsence {
@@ -419,11 +419,13 @@ model PermitAbsence {
   end_date      DateTime?
   permit_status EPermitStatus  @default(PENDING)
 
-  status     Boolean  @default(false)
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now())
-  Absence    Absence  @relation(fields: [absenceId], references: [id], onUpdate: Cascade)
-  absenceId  String
+  status       Boolean  @default(false)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @default(now())
+  User         User     @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  userId       String
+  ApproverBy   User?    @relation("PermitAbsenceApprover", fields: [approverById], references: [id], onUpdate: Cascade)
+  approverById String?
 }
 
 model CostType {
@@ -432,17 +434,16 @@ model CostType {
   type        ECostType
   description String?
 
-  status     Boolean    @default(true)
-  created_at DateTime   @default(now())
-  updated_at DateTime   @default(now())
-  Insentif   Insentif[]
+  status     Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
 }
 
 model Insentif {
   id             String        @id @default(uuid())
   name           String
-  date           DateTime
   description    String?
+  file           String?
   nominal_type   ENominalType  @default(RUPIAH)
   nominal        Float
   approve_status EPermitStatus @default(PENDING)
@@ -451,24 +452,21 @@ model Insentif {
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
 
-  User         User     @relation(fields: [userId], references: [id], onUpdate: Cascade)
+  User         User    @relation(fields: [userId], references: [id], onUpdate: Cascade)
   userId       String
-  ApproverBy   User?    @relation("InsentifApprover", fields: [approverById], references: [id], onUpdate: Cascade)
+  ApproverBy   User?   @relation("InsentifApprover", fields: [approverById], references: [id], onUpdate: Cascade)
   approverById String?
-  CostType     CostType @relation(fields: [costTypeId], references: [id], onUpdate: Cascade)
-  costTypeId   String
 }
 
 model Payroll {
-  id          String         @id @default(uuid())
+  id          String    @id @default(uuid())
   month       Int // 1-12
   year        Int // e.g., 2026
   base_salary Int // Gaji pokok
-  allowance   Int            @default(0) // Tunjangan
-  insentif    Int            @default(0) // insentif tambahan
-  deduction   Int            @default(0) // Total potongan
-  status      EPayrollStatus @default(DRAFT)
-  notes       String?        @db.Text
+  allowance   Int       @default(0) // Tunjangan
+  insentif    Int       @default(0) // insentif tambahan
+  deduction   Int       @default(0) // Total potongan
+  notes       String?   @db.Text
   approved_at DateTime?
 
   created_at DateTime @default(now())

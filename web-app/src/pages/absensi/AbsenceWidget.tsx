@@ -43,11 +43,13 @@ export default function AbsenceWidget({
     (async () => {
       setLoading(true);
       setModelLoad(true);
+      setDisable(true);
       await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       ]);
+      setDisable(false);
       setLoading(false);
       setModelLoad(false);
     })();
@@ -125,7 +127,9 @@ export default function AbsenceWidget({
             })
             .then(() => {
               message.success("Berhasil mendaftarkan wajah. mohon absen ulang");
-              window.location.reload();
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
             })
             .catch((err) => {
               console.log(err);
@@ -204,6 +208,7 @@ export default function AbsenceWidget({
             geo_in_lat: coords?.lat,
             geo_in_long: coords?.lon,
             method: user.absen_method,
+            alpha_deduction: 0,
             late_deduction: moment(new Date()).isAfter(
               moment()
                 .set("hour", config.shift_start)
@@ -212,14 +217,15 @@ export default function AbsenceWidget({
             )
               ? config.late_deduction
               : 0,
-            absence_status: moment(new Date()).isAfter(
+            absence_status: "HADIR",
+            description: moment(new Date()).isAfter(
               moment()
                 .set("hour", config.shift_start)
                 .set("minute", config.shift_tolerance),
               "minute",
             )
               ? "TERLAMBAT"
-              : "HADIR",
+              : "",
             userId: user.id,
           }
         : {
@@ -233,6 +239,9 @@ export default function AbsenceWidget({
             )
               ? config.fast_leave_deduction
               : 0,
+            description: user.Absence[0].description?.includes("PULANG_CEPAT")
+              ? user.Absence[0].description
+              : user.Absence[0].description + ",PULANG_CEPAT",
             userId: user.id,
           };
     await api
@@ -259,16 +268,15 @@ export default function AbsenceWidget({
 
   const handleAbsenceClicked = async () => {
     if (
-      user.Absence.length !== 0 &&
+      user.Absence.length === 0 &&
       moment(new Date()).isAfter(
         moment().set("hour", config.last_shift),
         "minute",
       )
     ) {
-      message.error("Maaf kamu telah melewati waktu toleransi absen!");
+      message.error("Maaf kamu telah melewati waktu akhir absen!");
       return;
     }
-    await handleGetLocation();
     setLoading(true);
     if (user.absen_method === "BUTTON") {
       await handleSaveAbsence();
@@ -278,6 +286,13 @@ export default function AbsenceWidget({
     }
     setLoading(false);
   };
+  useEffect(() => {
+    if (!coords) {
+      (async () => {
+        await handleGetLocation();
+      })();
+    }
+  }, [coords]);
 
   return (
     <Drawer
@@ -310,7 +325,7 @@ export default function AbsenceWidget({
               icon={<Calendar size={14} />}
               onClick={() => handleAbsenceClicked()}
               disabled={disable}
-              loading={loading}
+              loading={!coords || loading}
             >
               {modelLoad ? "Load Models ..." : "Absen Pulang Sekarang"}
             </Button>
@@ -533,8 +548,10 @@ const defaultData: IAbsence = {
   absence_status: "HADIR",
   late_deduction: 0,
   fast_leave_deduction: 0,
+  alpha_deduction: 0,
   lemburan: 0,
   userId: "",
+  description: null,
 
   status: false,
   created_at: new Date(),
@@ -581,7 +598,7 @@ async function extractFaceDescriptor(image: HTMLImageElement) {
 function compareFaces(
   captured: Float32Array,
   refference: Float32Array,
-  distanceThreshold = 0.6,
+  distanceThreshold = 0.5,
 ) {
   const distance = faceapi.euclideanDistance(captured, refference);
   return distance < distanceThreshold;

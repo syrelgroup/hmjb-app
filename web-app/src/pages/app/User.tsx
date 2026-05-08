@@ -680,7 +680,9 @@ const UpsertData = ({
                     }
                     onChange={(e) => {
                       const inputValue = e.target.value;
+                      // Ganti koma ke titik untuk parsing
                       const normalizedValue = inputValue.replace(",", ".");
+
                       setData({
                         ...data,
                         UserCost: data.UserCost?.map((u, i) => {
@@ -688,16 +690,22 @@ const UpsertData = ({
                             if (u.nominal_type === "RUPIAH") {
                               return {
                                 ...u,
-                                nominal: IDRToNumber(inputValue || "0"),
+                                nominal: Number(IDRToNumber(inputValue || "0")), // Pastikan Number
                               };
                             } else {
+                              // Regex untuk mengizinkan angka dan satu titik/koma desimal
                               if (
                                 /^-?\d*[.,]?\d*$/.test(inputValue) ||
                                 inputValue === ""
                               ) {
                                 return {
                                   ...u,
-                                  nominal: normalizedValue as any,
+                                  // Gunakan Number() atau parseFloat()
+                                  // Jika input kosong, set ke 0
+                                  nominal:
+                                    inputValue === ""
+                                      ? 0
+                                      : Number(normalizedValue),
                                 };
                               }
                             }
@@ -764,6 +772,7 @@ const defaultData: IUser = {
   positionId: "",
   Absence: [],
   UserCost: [],
+  PermitAbsence: [],
 };
 
 const defaultCost: IUserCost = {

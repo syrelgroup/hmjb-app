@@ -14,9 +14,12 @@ import {
   User,
   BriefcaseBusiness,
   ChartBarBig,
+  Gift,
+  FormInputIcon,
+  Calendar,
 } from "lucide-react";
 import type { IMenu } from "./interface";
-import { BranchesOutlined } from "@ant-design/icons";
+import { BranchesOutlined, DollarCircleOutlined } from "@ant-design/icons";
 
 export type AppType = "earsip" | "callreport" | "absensi" | "guestbook" | "all";
 
@@ -215,30 +218,30 @@ export const menus: IMenu[] = [
         can_access: ["read", "update"],
       },
       {
-        name: "Rekap Harian",
-        path: "/app/absensi/daily",
-        icon: <Hash size={15} />,
-        need_access: true,
-        can_access: ["read", "update", "delete"],
-      },
-      {
         name: "Permohonan Izin",
-        path: "/app/absensi/permiit",
-        icon: <Hash size={15} />,
+        path: "/app/absensi/permit",
+        icon: <FormInputIcon size={15} />,
         need_access: true,
         can_access: ["read", "write", "update", "delete", "proses"],
       },
       {
-        name: "Rekap Bulanan",
-        path: "/app/absensi/monthly",
-        icon: <Hash size={15} />,
+        name: "Laporan Absensi",
+        path: "/app/absensi/report",
+        icon: <Calendar size={15} />,
         need_access: true,
-        can_access: ["read"],
+        can_access: ["read", "update", "delete"],
+      },
+      {
+        name: "Insentif",
+        path: "/app/absensi/insentif",
+        icon: <Gift size={15} />,
+        need_access: true,
+        can_access: ["read", "write", "update", "delete", "proses"],
       },
       {
         name: "Rekap Gaji",
         path: "/app/absensi/payroll",
-        icon: <Hash size={15} />,
+        icon: <DollarCircleOutlined />,
         need_access: true,
         can_access: ["read", "proses"],
       },

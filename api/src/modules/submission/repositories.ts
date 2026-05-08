@@ -60,7 +60,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       ...(backdate && {
         created_at: {
           gte: moment((backdate as string).split(",")[0])
-            .startOf("date")
+            .startOf("day")
             .toDate(),
           lte: moment((backdate as string).split(",")[1])
             .endOf("day")

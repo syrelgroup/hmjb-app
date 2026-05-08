@@ -103,6 +103,7 @@ export interface IUser {
   UserCost?: IUserCost[] | null;
   roleId: string;
   positionId: string | null;
+  PermitAbsence: IPermitAbsence[] | null;
 }
 
 export interface IAbsence {
@@ -114,10 +115,19 @@ export interface IAbsence {
   geo_in_long?: number | null;
   geo_out_lat?: number | null;
   geo_out_long?: number | null;
-  absence_status: "HADIR" | "TERLAMBAT" | "CUTI" | "PERDIN" | "SAKIT";
+  absence_status:
+    | "HADIR"
+    | "CUTI"
+    | "PERDIN"
+    | "SAKIT"
+    | "LEMBUR"
+    | "ALPHA"
+    | "PULANG_CEPAT";
   late_deduction: number;
   fast_leave_deduction: number;
   lemburan: number;
+  alpha_deduction: number;
+  description: string | null;
 
   status: boolean;
   created_at: Date;
@@ -125,6 +135,7 @@ export interface IAbsence {
   userId: string;
   User?: IUser;
 }
+
 export interface IAbsenceConfig {
   id: string;
   late_deduction: number;
@@ -138,6 +149,48 @@ export interface IAbsenceConfig {
   geo_location: string | null;
   meter_tolerance: number | null;
   updated_at: Date;
+}
+
+export interface IPermitAbsence {
+  id: string;
+  type:
+    | "TERLAMBAT"
+    | "CUTI"
+    | "PERDIN"
+    | "SAKIT"
+    | "LEMBUR"
+    | "PULANG_CEPAT"
+    | "ALPHA";
+  description: string | null;
+  file: string | null;
+  start_date: Date | null;
+  end_date: Date | null;
+  permit_status: "DISETUJUI" | "DITOLAK" | "PENDING";
+
+  status: boolean;
+  created_at: Date;
+  updated_at: Date;
+  User: IUser;
+  userId: string;
+  ApproverBy: IUser | null;
+  approverById: string | null;
+}
+
+export interface IInsentif {
+  id: string;
+  name: string;
+  description: string | null;
+  nominal: number;
+  nominal_type: "RUPIAH" | "PERCENT";
+  approve_status: EStatusSubmission;
+  file: string | null;
+  status: boolean;
+  created_at: Date;
+  updated_at: Date;
+  User: IUser;
+  ApproverBy: IUser | null;
+  userId: string;
+  approverById: string | null;
 }
 
 export interface IGuestBookType {

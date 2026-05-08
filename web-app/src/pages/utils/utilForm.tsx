@@ -39,7 +39,7 @@ export const InputUtil = ({
   value?: any;
   onchage?: Function;
   disabled?: boolean;
-  type: "text" | "number" | "option" | "area" | "date" | "password";
+  type: "text" | "number" | "option" | "area" | "date" | "password" | "upload";
   options?: { label: string; value: any }[];
   prefix?: any;
   suffix?: any;
@@ -48,7 +48,14 @@ export const InputUtil = ({
   layout?: "horizontal" | "vertical";
 }) => {
   const handleType = (
-    type: "text" | "number" | "option" | "area" | "date" | "password",
+    type:
+      | "text"
+      | "number"
+      | "option"
+      | "area"
+      | "date"
+      | "password"
+      | "upload",
   ) => {
     switch (type) {
       case "number": {
@@ -63,6 +70,7 @@ export const InputUtil = ({
             suffix={suffix}
             placeholder={placeholder}
             style={{ color: "black" }}
+            allowClear
           />
         );
       }
@@ -78,6 +86,7 @@ export const InputUtil = ({
             suffix={suffix}
             style={{ color: "black" }}
             placeholder={placeholder}
+            allowClear
           />
         );
       }
@@ -92,6 +101,7 @@ export const InputUtil = ({
             suffix={suffix}
             style={{ color: "black" }}
             placeholder={placeholder}
+            allowClear
           />
         );
       }
@@ -108,6 +118,7 @@ export const InputUtil = ({
             prefix={prefix}
             suffix={suffix}
             placeholder={placeholder}
+            allowClear
           />
         );
       }
@@ -119,6 +130,18 @@ export const InputUtil = ({
             disabled={disabled}
             style={{ color: "black" }}
             placeholder={placeholder}
+            allowClear
+          />
+        );
+      }
+      case "upload": {
+        return (
+          <OneFileUpload
+            url={value}
+            onchange={(url: string) => onchage && onchage(url)}
+            ondelete={() => onchage && onchage(null)}
+            filetype="*"
+            label={true}
           />
         );
       }
@@ -133,6 +156,7 @@ export const InputUtil = ({
             suffix={suffix}
             placeholder={placeholder}
             style={{ color: "black" }}
+            allowClear
           />
         );
       }
@@ -335,11 +359,13 @@ export const OneFileUpload = ({
   onchange,
   ondelete,
   filetype,
+  label,
 }: {
   url: string | null;
   onchange: Function;
   ondelete: Function;
   filetype: string;
+  label?: boolean;
 }) => {
   const [loading, setLoading] = useState(false);
 
@@ -373,7 +399,7 @@ export const OneFileUpload = ({
 
   return (
     <div className="flex gap-2 justify-between items-center">
-      <div className="flex-1">Upload File</div>
+      {!label && <div className="flex-1">Upload File</div>}
       <div className="flex-1 flex justify-end">
         {url ? (
           <Button
