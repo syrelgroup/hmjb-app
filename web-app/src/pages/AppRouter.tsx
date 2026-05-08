@@ -42,6 +42,7 @@ import PermitAbsence from "./absensi/PermitAbsence";
 import DailyReportAbsence from "./absensi/DailyReportAbsence";
 import InsentifPage from "./absensi/Insentif";
 import DashboardAbsensi from "./absensi/DashboardAbsensi";
+import PayrollPage from "./absensi/Payroll";
 
 function AppRouter() {
   const path = window.location.pathname;
@@ -122,6 +123,7 @@ function AppRouter() {
 
           {/* ABSENSI */}
           <Route path="/absensi/" element={<DashboardAbsensi />} />
+          <Route path="/absensi/payroll" element={<PayrollPage />} />
           <Route path="/absensi/config" element={<AbsenceConfig />} />
           <Route path="/absensi/permit" element={<PermitAbsence />} />
           <Route path="/absensi/report" element={<DailyReportAbsence />} />
