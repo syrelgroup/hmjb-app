@@ -75,6 +75,36 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
                 }),
           },
         },
+        UserCost: {
+          where: {
+            ...(month
+              ? {
+                  OR: [
+                    {
+                      start_at: {
+                        lte: moment(month as string)
+                          .endOf("month")
+                          .toDate(),
+                      },
+                      end_at: {
+                        gte: moment(month as string)
+                          .startOf("month")
+                          .toDate(),
+                      },
+                    },
+                    {
+                      start_at: {
+                        lte: moment(month as string)
+                          .endOf("month")
+                          .toDate(),
+                      },
+                      end_at: null,
+                    },
+                  ],
+                }
+              : {}),
+          },
+        },
       },
     });
 

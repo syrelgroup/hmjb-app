@@ -91,19 +91,28 @@ const PayrollPage = () => {
     const totalAllowance = userCosts
       .filter((cost) => cost.type === "PENAMBAHAN")
       .reduce((acc, cost) => {
-        const nominal = cost.nominal_type === "PERCENT" ? (salary * cost.nominal) / 100 : cost.nominal;
+        const nominal =
+          cost.nominal_type === "PERCENT"
+            ? (salary * cost.nominal) / 100
+            : cost.nominal;
         return acc + nominal;
       }, 0);
 
     const totalDeductionUserCost = userCosts
       .filter((cost) => cost.type === "PENGURANGAN")
       .reduce((acc, cost) => {
-        const nominal = cost.nominal_type === "PERCENT" ? (salary * cost.nominal) / 100 : cost.nominal;
+        const nominal =
+          cost.nominal_type === "PERCENT"
+            ? (salary * cost.nominal) / 100
+            : cost.nominal;
         return acc + nominal;
       }, 0);
 
     const grossSalary = salary + overtimePay + totalAllowance;
-    const netBeforeTax = Math.max(0, grossSalary - totalDeduction - totalDeductionUserCost);
+    const netBeforeTax = Math.max(
+      0,
+      grossSalary - totalDeduction - totalDeductionUserCost,
+    );
     const taxableIncome = Math.max(0, netBeforeTax - PTKP_MONTHLY);
     const pph = Math.round(taxableIncome * 0.05);
     const takeHome = Math.max(0, netBeforeTax - pph);
@@ -155,7 +164,8 @@ const PayrollPage = () => {
         Lembur: payroll.overtimeCount,
         "Potongan Terlambat (Rp)": payroll.lateDeduction,
         "Potongan Alpha (Rp)": payroll.alphaDeduction,
-        "Total Potongan (Rp)": payroll.totalDeduction + payroll.totalDeductionUserCost,
+        "Total Potongan (Rp)":
+          payroll.totalDeduction + payroll.totalDeductionUserCost,
         "Gaji Kotor (Rp)": payroll.grossSalary,
         "Penghasilan Kena Pajak (Rp)": payroll.taxableIncome,
         "PPh 5% (Rp)": payroll.pph,
@@ -323,12 +333,15 @@ const PayrollPage = () => {
           size: 10,
           font,
         });
-        page.drawText(IDRFormat(payroll.totalDeduction + payroll.totalDeductionUserCost), {
-          x: columnX[5],
-          y: cursorY,
-          size: 10,
-          font,
-        });
+        page.drawText(
+          IDRFormat(payroll.totalDeduction + payroll.totalDeductionUserCost),
+          {
+            x: columnX[5],
+            y: cursorY,
+            size: 10,
+            font,
+          },
+        );
         page.drawText(IDRFormat(payroll.pph), {
           x: columnX[6],
           y: cursorY,
@@ -421,7 +434,10 @@ const PayrollPage = () => {
       drawLine("Potongan Terlambat", IDRFormat(payroll.lateDeduction));
       drawLine("Potongan Alpha", IDRFormat(payroll.alphaDeduction));
       drawLine("Potongan UserCost", IDRFormat(payroll.totalDeductionUserCost));
-      drawLine("Total Deduction", IDRFormat(payroll.totalDeduction + payroll.totalDeductionUserCost));
+      drawLine(
+        "Total Deduction",
+        IDRFormat(payroll.totalDeduction + payroll.totalDeductionUserCost),
+      );
       drawLine("Gaji Bersih Sebelum Pajak", IDRFormat(payroll.netBeforeTax));
       cursorY -= 10;
 
@@ -548,7 +564,10 @@ const PayrollPage = () => {
       title: "Total Potongan",
       key: "deduction",
       render: (_value, record) =>
-        IDRFormat(calculatePayroll(record).totalDeduction + calculatePayroll(record).totalDeductionUserCost),
+        IDRFormat(
+          calculatePayroll(record).totalDeduction +
+            calculatePayroll(record).totalDeductionUserCost,
+        ),
       align: "right",
     },
     {
