@@ -43,8 +43,8 @@ export const GET = async (req, res, next) => {
                             }
                             : {
                                 created_at: {
-                                    gte: moment().startOf("day").toDate(),
-                                    lte: moment().endOf("day").toDate(),
+                                    gte: moment().startOf("month").toDate(),
+                                    lte: moment().endOf("month").toDate(),
                                 },
                             }),
                         status: true,
@@ -65,8 +65,8 @@ export const GET = async (req, res, next) => {
                             }
                             : {
                                 created_at: {
-                                    gte: moment().startOf("day").toDate(),
-                                    lte: moment().endOf("day").toDate(),
+                                    gte: moment().startOf("month").toDate(),
+                                    lte: moment().endOf("month").toDate(),
                                 },
                             }),
                     },
@@ -99,6 +99,29 @@ export const GET = async (req, res, next) => {
                                 ],
                             }
                             : {}),
+                    },
+                },
+                Insentif: {
+                    where: {
+                        ...(month
+                            ? {
+                                created_at: {
+                                    gte: moment(month)
+                                        .startOf("month")
+                                        .toDate(),
+                                    lte: moment(month)
+                                        .endOf("month")
+                                        .toDate(),
+                                },
+                            }
+                            : {
+                                created_at: {
+                                    gte: moment().startOf("month").toDate(),
+                                    lte: moment().endOf("month").toDate(),
+                                },
+                            }),
+                        status: true,
+                        approve_status: "DISETUJUI",
                     },
                 },
             },

@@ -277,6 +277,16 @@ export default function AbsenceWidget({
       message.error("Maaf kamu telah melewati waktu akhir absen!");
       return;
     }
+    if (
+      moment(new Date()).isBefore(
+        moment().set("hour", config.shift_start - 1),
+        "minute",
+      )
+    ) {
+      message.error("Maaf belum masuk waktu absen!");
+      return;
+    }
+
     setLoading(true);
     if (user.absen_method === "BUTTON") {
       await handleSaveAbsence();
@@ -306,7 +316,7 @@ export default function AbsenceWidget({
           icon={<Calendar size={14} />}
           onClick={() => handleAbsenceClicked()}
           loading={loading}
-          disabled={disable}
+          disabled={disable || loading}
           type="primary"
         >
           {modelLoad ? "Load Models ..." : "Absen Masuk Sekarang"}

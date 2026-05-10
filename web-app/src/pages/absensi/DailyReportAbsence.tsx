@@ -1,236 +1,3 @@
-// import { useState, useEffect, useMemo } from "react";
-// import moment from "moment";
-// import type { IUser } from "../../libs/interface";
-// import api from "../../libs/api";
-// import { Calendar } from "lucide-react";
-// import { Input, Pagination, Spin } from "antd";
-
-// const DailyReportAbsence = () => {
-//   const [data, setData] = useState<IUser[]>([]);
-//   const [month, setMonth] = useState(moment().format("YYYY-MM"));
-//   const [holidays, setHolidays] = useState<Record<string, string>>({}); // Format: {"2024-01-01": "Tahun Baru"}
-//   const [loading, setLoading] = useState(false);
-//   const [page, setPage] = useState(1);
-//   const [total, setTotal] = useState(0);
-//   const [search, setSearch] = useState("");
-//   const [limit, setLimit] = useState(50);
-
-//   const fetchData = async () => {
-//     setLoading(true);
-//     try {
-//       const response = await api.get(`/absence_report`, {
-//         params: { page, limit, search, month },
-//       });
-//       setData(response.data.data);
-//       setTotal(response.data.total);
-//     } catch (error) {
-//       console.error("Error fetching data:", error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const fetchHolidays = async () => {
-//     try {
-//       const year = moment(month).year();
-//       // Menggunakan API publik Indonesia
-//       const res = await api.get(
-//         `https://api-harilibur.vercel.app/api?year=${year}`,
-//       );
-
-//       const holidayMap: Record<string, string> = {};
-//       res.data.forEach((h: any) => {
-//         if (h.is_national_holiday) {
-//           holidayMap[moment(h.holiday_date).format("YYYY-MM-DD")] =
-//             h.holiday_name;
-//         }
-//       });
-//       setHolidays(holidayMap);
-//     } catch (err) {
-//       console.error("Gagal load hari libur", err);
-//     }
-//   };
-//   useEffect(() => {
-//     (async () => {
-//       await fetchHolidays();
-//       await fetchData();
-//     })();
-//   }, [month, search]);
-
-//   // 2. Kalkulasi metadata hari dalam sebulan (Memoized untuk performa)
-//   const daysHeader = useMemo(() => {
-//     const daysInMonth = moment(month).daysInMonth();
-//     return Array.from({ length: daysInMonth }, (_, i) => {
-//       const day = i + 1;
-//       const dateStr = moment(month).date(day).format("YYYY-MM-DD");
-//       const dateObj = moment(dateStr);
-
-//       const holidayName = holidays[dateStr];
-//       const isSunday = dateObj.day() === 0;
-//       const isRedDay = isSunday || !!holidayName;
-
-//       return {
-//         day,
-//         dateStr,
-//         isRedDay,
-//         tooltip: holidayName || (isSunday ? "Hari Minggu" : ""),
-//       };
-//     });
-//   }, [month, holidays, search]);
-
-//   return (
-//     <Spin spinning={loading}>
-//       <div className="p-2 bg-gray-50 min-h-screen">
-//         <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-//           <h1 className="text-2xl font-bold text-gray-800">
-//             Laporan Absensi Harian
-//           </h1>
-
-//           <div className="flex flex-wrap gap-3">
-//             {/* Filter Bulan */}
-//             <div className="relative">
-//               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-2 h-2" />
-//               <input
-//                 type="month"
-//                 value={month}
-//                 onChange={(e) => setMonth(e.target.value)}
-//                 className="pl-10 pr-4 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white border-gray-200"
-//               />
-//             </div>
-
-//             {/* Search Bar */}
-//             <Input.Search
-//               type="text"
-//               placeholder="Cari NIK atau Nama..."
-//               value={search}
-//               onChange={(e) => setSearch(e.target.value)}
-//               size="small"
-//               style={{ width: 170 }}
-//             />
-//           </div>
-//         </div>
-//         <div className="bg-white rounded-xl shadow overflow-hidden">
-//           <div className="overflow-x-auto">
-//             <table className="w-full text-xs border-collapse">
-//               <thead>
-//                 <tr className="bg-gray-100">
-//                   <th className="px-4 py-3 sticky left-0 bg-gray-100 z-20 border-b text-left w-48 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-//                     Nama Pegawai
-//                   </th>
-//                   {daysHeader.map((item) => (
-//                     <th
-//                       key={item.day}
-//                       title={item.tooltip} // Tooltip bawaan browser
-//                       className={`px-2 py-3 border-b text-center min-w-8.75 cursor-help transition-colors ${
-//                         item.isRedDay
-//                           ? "text-red-600 bg-red-50 font-bold"
-//                           : "text-gray-600"
-//                       }`}
-//                     >
-//                       {item.day}
-//                     </th>
-//                   ))}
-//                 </tr>
-//               </thead>
-//               <tbody>
-//                 {data.map((user) => (
-//                   <tr
-//                     key={user.id}
-//                     className="hover:bg-blue-50/30 transition-colors group"
-//                   >
-//                     <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-blue-50/30 border-r z-10 font-medium shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-//                       <div className="truncate w-40">{user.fullname}</div>
-//                     </td>
-
-//                     {daysHeader.map((item) => {
-//                       const dailyAbsence = user.Absence?.find(
-//                         (a) =>
-//                           moment(a.check_in).format("YYYY-MM-DD") ===
-//                           item.dateStr,
-//                       );
-
-//                       return (
-//                         <td
-//                           key={item.day}
-//                           title={item.tooltip ? `${item.tooltip}` : undefined}
-//                           className={`px-1 py-2 text-center border-r border-b border-gray-100 ${
-//                             item.isRedDay ? "bg-red-50/30" : ""
-//                           }`}
-//                         >
-//                           {dailyAbsence ? (
-//                             <div className="flex flex-col items-center gap-1">
-//                               <StatusBadge
-//                                 status={dailyAbsence.absence_status}
-//                               />
-//                               {/* Opsional: Jam masuk kecil di bawah status */}
-//                               {dailyAbsence.check_in && (
-//                                 <span className="text-[9px] text-gray-400">
-//                                   {moment(dailyAbsence.check_in).format(
-//                                     "HH:mm",
-//                                   )}
-//                                   <br />
-//                                   {moment(dailyAbsence.check_out).format(
-//                                     "HH:mm",
-//                                   )}
-//                                 </span>
-//                               )}
-//                             </div>
-//                           ) : (
-//                             <span className="text-gray-200">
-//                               {item.isRedDay ? "" : "•"}
-//                             </span>
-//                           )}
-//                         </td>
-//                       );
-//                     })}
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         </div>
-//         <div className="mt-4 flex justify-end">
-//           <Pagination
-//             current={page}
-//             pageSize={limit}
-//             onChange={(page, pageSize) => {
-//               setPage(page);
-//               setLimit(pageSize);
-//             }}
-//             size="small"
-//             total={total}
-//             showSizeChanger
-//             pageSizeOptions={["10", "20", "50", "100"]}
-//           />
-//         </div>
-//       </div>
-//     </Spin>
-//   );
-// };
-
-// // Komponen Badge Status yang lebih compact
-// const StatusBadge = ({ status }: { status: string }) => {
-//   const config: Record<string, string> = {
-//     HADIR: "bg-green-500 text-white",
-//     SAKIT: "bg-yellow-400 text-white",
-//     CUTI: "bg-blue-500 text-white",
-//     PERDIN: "bg-purple-500 text-white",
-//     ALPHA: "bg-red-500 text-white",
-//     LEMBUR: "bg-orange-500 text-white",
-//     PULANG_CEPAT: "bg-orange-500 text-white",
-//   };
-
-//   return (
-//     <span
-//       className={`w-5 h-5 flex items-center justify-center rounded-sm text-[10px] font-bold shadow-sm ${config[status] || "bg-gray-200"}`}
-//     >
-//       {status.charAt(0)}
-//     </span>
-//   );
-// };
-
-// export default DailyReportAbsence;
-
 import { useState, useEffect, useMemo } from "react";
 import moment from "moment";
 import type { IUser } from "../../libs/interface";
@@ -280,17 +47,16 @@ const DailyReportAbsence = () => {
       cuti:
         user.Absence?.filter((a) => a.absence_status === "CUTI").length || 0,
       lembur:
-        user.Absence?.filter((a) => a.absence_status === "LEMBUR").length || 0,
+        user.Absence?.filter((a) =>
+          (a.description || "").split(",").includes("LEMBUR"),
+        ) || 0,
       terlambat:
-        user.Absence?.filter(
-          (a) =>
-            (a.description || "").split(",").filter((v) => v === "TERLAMBAT")
-              .length > 0,
+        user.Absence?.filter((a) =>
+          (a.description || "").split(",").includes("TERLAMBAT"),
         ).length || 0,
       pulangCepat:
-        user.Absence?.filter(
-          (a) =>
-            a.absence_status === "PULANG_CEPAT" || a.fast_leave_deduction > 0,
+        user.Absence?.filter((a) =>
+          (a.description || "").split(",").includes("PULANG _CETAP"),
         ).length || 0,
     };
 
@@ -314,32 +80,42 @@ const DailyReportAbsence = () => {
       };
 
       // 2. Kalkulasi summary terlebih dahulu agar data tersedia
-      const s = getUserSummary(user);
+      // const s = getUserSummary(user);
 
       // 3. Masukkan kolom tanggal (1 - 31)
       daysHeader.forEach((day) => {
         const abs = user.Absence?.find(
           (a) => moment(a.check_in).format("YYYY-MM-DD") === day.dateStr,
         );
-        row[day.day] = abs
-          ? abs.absence_status.charAt(0)
-          : day.isRedDay
-            ? "L"
-            : "-";
+
+        if (abs) {
+          const inTime = abs.check_in
+            ? moment(abs.check_in).format("HH:mm")
+            : "--";
+          const outTime = abs.check_out
+            ? moment(abs.check_out).format("HH:mm")
+            : "--";
+
+          // Menampilkan: IN: 08:00 / OUT: 17:00
+          // HR sangat suka ini karena jelas jam kerjanya
+          row[day.day] = `${inTime}\n${outTime}`;
+        } else {
+          row[day.day] = day.isRedDay ? "OFF" : "-";
+        }
       });
 
-      // 4. Tambahkan kolom statistik/detail di paling kanan secara berurutan
-      row["Hadir"] = s.hadir;
-      row["Alpha"] = s.alpha;
-      row["Sakit"] = s.sakit;
-      row["Cuti"] = s.cuti;
-      row["Lembur"] = s.lembur;
-      row["Terlambat"] = s.terlambat;
-      row["Pulang Cepat"] = s.pulangCepat;
-      row["Total Tidak Masuk"] = s.totalTidakMasuk;
-      row["Total Potongan"] = calculateTotalDeduction(user);
-      row["Daftar Permohonan"] =
-        user.PermitAbsence?.map((p) => p.type).join(", ") || "-";
+      // // 4. Tambahkan kolom statistik/detail di paling kanan secara berurutan
+      // row["Hadir"] = s.hadir;
+      // row["Alpha"] = s.alpha;
+      // row["Sakit"] = s.sakit;
+      // row["Cuti"] = s.cuti;
+      // row["Lembur"] = s.lembur;
+      // row["Terlambat"] = s.terlambat;
+      // row["Pulang Awal"] = s.pulangCepat;
+      // row["Total Tidak Masuk"] = s.totalTidakMasuk;
+      // row["Total Potongan"] = calculateTotalDeduction(user);
+      // row["Daftar Permohonan"] =
+      //   user.PermitAbsence?.map((p) => p.type).join(", ") || "-";
 
       return row;
     });
@@ -389,19 +165,24 @@ const DailyReportAbsence = () => {
   };
 
   // --- Helper Kalkulasi ---
-  const calculateTotalDeduction = (user: IUser) => {
-    const late =
-      user.Absence?.reduce(
-        (acc, curr) => acc + (curr.late_deduction || 0),
-        0,
-      ) || 0;
-    const alpha =
-      user.Absence?.reduce(
-        (acc, curr) => acc + (curr.alpha_deduction || 0),
-        0,
-      ) || 0;
-    return late + alpha;
-  };
+  // const calculateTotalDeduction = (user: IUser) => {
+  //   const late =
+  //     user.Absence?.reduce(
+  //       (acc, curr) => acc + (curr.late_deduction || 0),
+  //       0,
+  //     ) || 0;
+  //   const alpha =
+  //     user.Absence?.reduce(
+  //       (acc, curr) => acc + (curr.alpha_deduction || 0),
+  //       0,
+  //     ) || 0;
+  //   const fastLeave =
+  //     user.Absence?.reduce(
+  //       (acc, curr) => acc + (curr.fast_leave_deduction || 0),
+  //       0,
+  //     ) || 0;
+  //   return late + alpha + fastLeave;
+  // };
 
   const fetchData = async () => {
     setLoading(true);
@@ -420,26 +201,30 @@ const DailyReportAbsence = () => {
 
   const fetchHolidays = async () => {
     try {
-      const year = moment(month).year();
-      const res = await api.get(
-        `https://api-harilibur.vercel.app/api?year=${year}`,
-      );
+      setLoading(true);
+
+      const res = await api.get("/holidays", {
+        params: {
+          month: month.split("-")[1] || moment().month(),
+          year: month.split("-")[0] || moment().year(),
+        },
+      });
       const holidayMap: Record<string, string> = {};
-      res.data.forEach((h: any) => {
-        if (h.is_national_holiday) {
-          holidayMap[moment(h.holiday_date).format("YYYY-MM-DD")] =
-            h.holiday_name;
-        }
+      res.data.data.forEach((h: any) => {
+        holidayMap[moment(h.date).format("YYYY-MM-DD")] = h.description;
       });
       setHolidays(holidayMap);
     } catch (err) {
       console.error(err);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchHolidays();
-    fetchData();
+    (async () => {
+      fetchHolidays();
+      fetchData();
+    })();
   }, [month, search, page, limit]);
 
   const daysHeader = useMemo(() => {
@@ -546,7 +331,25 @@ const DailyReportAbsence = () => {
                             className={`px-0 py-2 text-center border-r border-b border-gray-100 ${item.isRedDay ? "bg-red-50/20" : ""}`}
                           >
                             {abs ? (
-                              <StatusBadge status={abs.absence_status} />
+                              <div>
+                                <StatusBadge status={abs.absence_status} />
+                                <div
+                                  className="text-xs opacity-80"
+                                  style={{ fontSize: 10 }}
+                                >
+                                  {abs.check_in
+                                    ? moment(abs.check_in).format("HH:mm")
+                                    : "-"}
+                                </div>
+                                <div
+                                  className="text-xs opacity-80"
+                                  style={{ fontSize: 10 }}
+                                >
+                                  {abs.check_out
+                                    ? moment(abs.check_out).format("HH:mm")
+                                    : "-"}
+                                </div>
+                              </div>
                             ) : (
                               <span className="text-gray-200">
                                 {item.isRedDay ? "" : "•"}
@@ -656,14 +459,14 @@ const DailyReportAbsence = () => {
                   </Descriptions.Item>
 
                   <Descriptions.Item label="Lembur">
-                    <Tag color="purple">{s.lembur} Kali</Tag>
+                    <Tag color="purple">{s.lembur.length} Kali</Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Potongan Gaji">
+                  {/* <Descriptions.Item label="Potongan Gaji">
                     <span className="text-red-600 font-bold">
                       Rp{" "}
                       {calculateTotalDeduction(selectedUser).toLocaleString()}
                     </span>
-                  </Descriptions.Item>
+                  </Descriptions.Item> */}
                 </Descriptions>
 
                 <Divider titlePlacement="left" className="text-xs">

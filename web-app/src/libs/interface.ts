@@ -104,6 +104,7 @@ export interface IUser {
   roleId: string;
   positionId: string | null;
   PermitAbsence: IPermitAbsence[] | null;
+  Insentif: IInsentif[] | null;
 }
 
 export interface IAbsence {
@@ -445,10 +446,16 @@ export interface IFileVisit {
   url: string;
 }
 
-export const PTKPDetail = [
-  { name: "TK/0", desc: "Belum Menikah", value: 0 },
-  { name: "K/0", desc: "Menikah (0 Anak)", value: 54000000 },
-  { name: "K/1", desc: "Menikah (1 Anak)", value: 58500000 },
-  { name: "K/2", desc: "Menikah (2 Anak)", value: 63000000 },
-  { name: "K/3", desc: "Menikah (3 Anak)", value: 67500000 },
+export interface IPTKP {
+  name: string;
+  desc: string;
+  value: number;
+}
+
+export const PTKPDetail: IPTKP[] = [
+  { name: "TK/0", desc: "Belum Menikah", value: 54000000 },
+  { name: "K/0", desc: "Menikah (0 Anak)", value: 58500000 },
+  { name: "K/1", desc: "Menikah (1 Anak)", value: 63000000 },
+  { name: "K/2", desc: "Menikah (2 Anak)", value: 67500000 },
+  { name: "K/3+", desc: "Menikah (3 Anak)", value: 72000000 },
 ];

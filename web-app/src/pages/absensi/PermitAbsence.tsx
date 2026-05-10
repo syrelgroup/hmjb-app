@@ -1,5 +1,4 @@
 import {
-  Alert,
   App,
   Button,
   DatePicker,
@@ -272,7 +271,7 @@ export default function PermitAbsence() {
                 size="small"
                 type="primary"
                 onClick={() => setAction({ ...action, process: true, record })}
-                disabled={record.permit_status !== "PENDING"}
+                // disabled={record.permit_status !== "PENDING"}
               ></Button>
             )}
             {hasAccess(window.location.pathname, "delete") && (
@@ -521,6 +520,7 @@ export default function PermitAbsence() {
           getData={getData}
           user={user}
           hook={modal}
+          hasAccess={hasAccess(window.location.pathname, "proses")}
         />
       )}
     </div>
@@ -673,6 +673,7 @@ const ProsesData = ({
   getData,
   user,
   hook,
+  hasAccess,
 }: {
   record: IPermitAbsence;
   open: boolean;
@@ -680,6 +681,7 @@ const ProsesData = ({
   getData: () => void;
   user: IUser;
   hook: HookAPI;
+  hasAccess: boolean;
 }) => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"DISETUJUI" | "DITOLAK">("DISETUJUI");
@@ -745,100 +747,148 @@ const ProsesData = ({
       okButtonProps={{
         // Warna tombol mengikuti status yang dipilih
         danger: status === "DITOLAK",
+        disabled: !hasAccess || record.permit_status !== "PENDING",
         className:
           status === "DISETUJUI" ? "bg-green-600 hover:bg-green-500" : "",
       }}
       style={{ top: 20 }}
+      width={1000}
     >
-      <div className="flex flex-col gap-5 py-4">
-        {/* Ringkasan Karyawan */}
-        <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-          <p className="text-[10px] text-gray-500 uppercase font-bold">
-            Nama Karyawan
-          </p>
-          <p className="text-sm font-semibold text-gray-800">
-            {record?.User?.fullname}
-          </p>
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 flex flex-col gap-5 py-4">
+          <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+            <p className="text-[10px] text-gray-500 uppercase font-bold">
+              Nama Karyawan
+            </p>
+            <p className="text-sm font-semibold text-gray-800">
+              {record?.User?.fullname}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
+                Tipe Permohonan
+              </p>
+              <div className="mt-1">
+                <span className="px-2 py-0.5 text-[11px] font-bold rounded bg-blue-100 text-blue-700">
+                  {record?.type}
+                </span>
+              </div>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
+                Tanggal
+              </p>
+              <p className="text-sm font-semibold text-gray-800">
+                {record.start_date && record.end_date ? (
+                  <div className="flex gap- 4">
+                    <span>
+                      {moment(record?.start_date).format("DD/MM/YYYY") || "-"}
+                    </span>
+                    <span>-</span>
+                    <span>
+                      {moment(record?.end_date).format("DD/MM/YYYY") || "-"}
+                    </span>
+                  </div>
+                ) : (
+                  <div>{moment(record?.created_at).format("DD/MM/YYYY")}</div>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-md border border-gray-200 flex-1">
+            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
+              Alasan / Keterangan
+            </p>
+            <p className="text-sm text-gray-700 mt-1 italic">
+              "{record?.description || "Tidak ada keterangan"}"
+            </p>
+          </div>
         </div>
+        <div className="flex-1 flex flex-col gap-5 py-4">
+          {/* Pemilihan Status */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-gray-600 uppercase">
+              Keputusan
+            </label>
+            <Radio.Group
+              block
+              options={[
+                { label: "Setujui", value: "DISETUJUI" },
+                { label: "Tolak", value: "DITOLAK" },
+              ]}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              optionType="button"
+              buttonStyle="solid"
+            />
+          </div>
+          <div className="border rounded-lg p-4 bg-white shadow-sm flex flex-col gap-4">
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-tight">
+              Penyesuaian Payroll (Rp)
+            </p>
 
-        {/* Pemilihan Status */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-gray-600 uppercase">
-            Keputusan
-          </label>
-          <Radio.Group
-            block
-            options={[
-              { label: "Setujui", value: "DISETUJUI" },
-              { label: "Tolak", value: "DITOLAK" },
-            ]}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            optionType="button"
-            buttonStyle="solid"
-          />
+            <InputUtil
+              label="Potongan Terlambat"
+              type="text"
+              required
+              value={IDRFormat(absence.late_deduction)}
+              onchage={(e: string) =>
+                setAbsence({
+                  ...absence,
+                  late_deduction: IDRToNumber(e || "0"),
+                })
+              }
+              disabled={record.type !== "TERLAMBAT"}
+            />
+            <InputUtil
+              label="Potongan Cepat Pulang"
+              type="text"
+              required
+              value={IDRFormat(absence.fast_leave_deduction)}
+              onchage={(e: string) =>
+                setAbsence({
+                  ...absence,
+                  fast_leave_deduction: IDRToNumber(e || "0"),
+                })
+              }
+              disabled={record.type !== "PULANG_CEPAT"}
+            />
+            <InputUtil
+              label="Potongan Alpha"
+              type="text"
+              required
+              value={IDRFormat(absence.alpha_deduction)}
+              onchage={(e: string) =>
+                setAbsence({
+                  ...absence,
+                  alpha_deduction: IDRToNumber(e || "0"),
+                })
+              }
+              disabled={record.type !== "CUTI" && record.type !== "SAKIT"}
+            />
+            <InputUtil
+              label="Uang Lemburan"
+              type="text"
+              required
+              value={IDRFormat(absence.lemburan)}
+              onchage={(e: string) =>
+                setAbsence({ ...absence, lemburan: IDRToNumber(e || "0") })
+              }
+              disabled={record.type !== "LEMBUR"}
+            />
+          </div>
+
+          {/* <Alert
+            message={
+              status === "DISETUJUI"
+                ? "Sistem akan memperbarui data absensi dan payroll sesuai nominal di atas."
+                : "Permohonan akan dibatalkan tanpa mengubah data payroll."
+            }
+            type={status === "DISETUJUI" ? "info" : "error"}
+            showIcon
+          /> */}
         </div>
-
-        {/* Panel Pengaturan Nominal (Hanya muncul jika DISETUJUI) */}
-        <div className="border rounded-lg p-4 bg-white shadow-sm flex flex-col gap-4">
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-tight">
-            Penyesuaian Payroll (Rp)
-          </p>
-
-          <InputUtil
-            label="Potongan Terlambat"
-            type="text"
-            required
-            value={IDRFormat(absence.late_deduction)}
-            onchage={(e: string) =>
-              setAbsence({ ...absence, late_deduction: IDRToNumber(e || "0") })
-            }
-            disabled={record.type !== "TERLAMBAT"}
-          />
-          <InputUtil
-            label="Potongan Cepat Pulang"
-            type="text"
-            required
-            value={IDRFormat(absence.fast_leave_deduction)}
-            onchage={(e: string) =>
-              setAbsence({
-                ...absence,
-                fast_leave_deduction: IDRToNumber(e || "0"),
-              })
-            }
-            disabled={record.type !== "PULANG_CEPAT"}
-          />
-          <InputUtil
-            label="Potongan Alpha"
-            type="text"
-            required
-            value={IDRFormat(absence.alpha_deduction)}
-            onchage={(e: string) =>
-              setAbsence({ ...absence, alpha_deduction: IDRToNumber(e || "0") })
-            }
-            disabled={record.type !== "CUTI" && record.type !== "SAKIT"}
-          />
-          <InputUtil
-            label="Uang Lemburan"
-            type="text"
-            required
-            value={IDRFormat(absence.lemburan)}
-            onchage={(e: string) =>
-              setAbsence({ ...absence, lemburan: IDRToNumber(e || "0") })
-            }
-            disabled={record.type !== "LEMBUR"}
-          />
-        </div>
-
-        <Alert
-          message={
-            status === "DISETUJUI"
-              ? "Sistem akan memperbarui data absensi dan payroll sesuai nominal di atas."
-              : "Permohonan akan dibatalkan tanpa mengubah data payroll."
-          }
-          type={status === "DISETUJUI" ? "info" : "error"}
-          showIcon
-        />
       </div>
     </Modal>
   );

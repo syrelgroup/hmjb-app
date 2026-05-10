@@ -773,6 +773,7 @@ const defaultData: IUser = {
   Absence: [],
   UserCost: [],
   PermitAbsence: [],
+  Insentif: [],
 };
 
 const defaultCost: IUserCost = {

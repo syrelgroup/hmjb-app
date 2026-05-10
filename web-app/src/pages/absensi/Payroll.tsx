@@ -7,17 +7,15 @@ import {
   Printer,
   Search,
 } from "lucide-react";
-import * as XLSX from "xlsx";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { saveAs } from "file-saver";
+// import * as XLSX from "xlsx";
+// import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+// import { saveAs } from "file-saver";
 import moment from "moment";
 import api from "../../libs/api";
 import { IDRFormat } from "../utils/utilForm";
-import type { IUser } from "../../libs/interface";
+import { PTKPDetail, type IPTKP, type IUser } from "../../libs/interface";
 import type { ColumnsType } from "antd/es/table";
-
-const PTKP_ANNUAL = 54000000;
-const PTKP_MONTHLY = PTKP_ANNUAL / 12;
+import { CollapseList } from "../utils/utilComp";
 
 const PayrollPage = () => {
   const [loading, setLoading] = useState(false);
@@ -57,43 +55,57 @@ const PayrollPage = () => {
     const salary = user.salary || 0;
     const absences = user.Absence || [];
     const permit = user.PermitAbsence || [];
+    const insentif = user.Insentif || [];
     const userCosts = user.UserCost || [];
 
-    const lateMinutes = absences.reduce(
+    const latededuction = absences.reduce(
       (acc, curr) => acc + (curr.late_deduction || 0),
       0,
     );
-    const alphaCount = absences.filter(
-      (a) => a.absence_status === "ALPHA",
-    ).length;
-    const overtimeCount = absences.filter(
-      (a) => a.absence_status === "LEMBUR",
-    ).length;
-    const hadirCount = absences.filter(
-      (a) => a.absence_status === "HADIR",
-    ).length;
-    const sakitCount = absences.filter(
-      (a) => a.absence_status === "SAKIT",
-    ).length;
-    const cutiCount = absences.filter(
-      (a) => a.absence_status === "CUTI",
-    ).length;
-    const perdinCount = absences.filter(
-      (a) => a.absence_status === "PERDIN",
-    ).length;
+    const late = absences.filter((a) =>
+      (a.description || "").split(",").includes("TERLAMBAT"),
+    );
 
-    const overtimePay = Math.round((salary / 173) * overtimeCount);
-    const lateDeduction = Math.round((salary / 173 / 60) * lateMinutes);
-    const alphaDeduction = Math.round((salary / 30) * alphaCount);
-    const totalDeduction = lateDeduction + alphaDeduction;
+    const alpha = absences.filter((a) => a.absence_status === "ALPHA");
+    const lembur = absences.filter((a) =>
+      (a.description || "").split(",").includes("LEMBUR"),
+    );
+    const fastleave = absences.filter((a) =>
+      (a.description || "").split(",").includes("PULANG_CEPAT"),
+    );
+    const hadir = absences.filter((a) => a.absence_status === "HADIR");
+    const sakit = absences.filter((a) => a.absence_status === "SAKIT");
+    const cuti = absences.filter((a) => a.absence_status === "CUTI");
+    const perdin = absences.filter(
+      (a) =>
+        a.absence_status === "PERDIN" ||
+        (a.description || "").split(",").includes("PERDIN"),
+    );
+
+    const lemburPay = absences.reduce((acc, curr) => acc + curr.lemburan, 0);
+    const alphaDeduction = alpha.reduce(
+      (acc, curr) => acc + curr.alpha_deduction,
+      0,
+    );
+    const fastLeaveDeduction = fastleave.reduce(
+      (acc, curr) => acc + curr.fast_leave_deduction,
+      0,
+    );
+    const totalInsentifPay = insentif.reduce((acc, cost) => {
+      const nominal =
+        cost.nominal_type === "PERCENT"
+          ? salary * (cost.nominal / 100)
+          : cost.nominal;
+      return acc + nominal;
+    }, 0);
 
     // Calculate user costs (allowances and deductions)
-    const totalAllowance = userCosts
+    const totalAllowanceUserCost = userCosts
       .filter((cost) => cost.type === "PENAMBAHAN")
       .reduce((acc, cost) => {
         const nominal =
           cost.nominal_type === "PERCENT"
-            ? (salary * cost.nominal) / 100
+            ? salary * (cost.nominal / 100)
             : cost.nominal;
         return acc + nominal;
       }, 0);
@@ -103,35 +115,41 @@ const PayrollPage = () => {
       .reduce((acc, cost) => {
         const nominal =
           cost.nominal_type === "PERCENT"
-            ? (salary * cost.nominal) / 100
+            ? salary * (cost.nominal / 100)
             : cost.nominal;
         return acc + nominal;
       }, 0);
 
-    const grossSalary = salary + overtimePay + totalAllowance;
+    const grossSalary =
+      salary + lemburPay + totalAllowanceUserCost + totalInsentifPay;
     const netBeforeTax = Math.max(
       0,
-      grossSalary - totalDeduction - totalDeductionUserCost,
+      grossSalary -
+        latededuction -
+        alphaDeduction -
+        fastLeaveDeduction -
+        totalDeductionUserCost,
     );
-    const taxableIncome = Math.max(0, netBeforeTax - PTKP_MONTHLY);
+    const ptkp: IPTKP =
+      PTKPDetail.find((tkp) => tkp.name === user.ptkp) || PTKPDetail[0];
+    const taxableIncome = Math.max(0, netBeforeTax - ptkp.value / 12);
     const pph = Math.round(taxableIncome * 0.05);
     const takeHome = Math.max(0, netBeforeTax - pph);
 
     return {
       salary,
-      lateMinutes,
-      alphaCount,
-      overtimeCount,
-      hadirCount,
-      sakitCount,
-      cutiCount,
-      perdinCount,
-      overtimePay,
-      lateDeduction,
-      alphaDeduction,
-      totalDeduction,
-      totalAllowance,
-      totalDeductionUserCost,
+      late,
+      latePay: latededuction,
+      alpha,
+      alphaPay: alphaDeduction,
+      lembur,
+      lemburPay: lemburPay,
+      fastleave,
+      fastLeaveDeduction,
+      hadir,
+      sakit,
+      cuti,
+      perdin,
       grossSalary,
       netBeforeTax,
       taxableIncome,
@@ -141,399 +159,53 @@ const PayrollPage = () => {
       permitApproved: permit.filter((p) => p.permit_status === "DISETUJUI")
         .length,
       permitPending: permit.filter((p) => p.permit_status === "PENDING").length,
+      allowance: userCosts.filter((a) => a.type === "PENAMBAHAN"),
+      allowancePay: totalAllowanceUserCost,
+      deduction: userCosts.filter((a) => a.type === "PENAMBAHAN"),
+      deductionPay: totalDeductionUserCost,
+      insentif: insentif,
+      insentifPay: totalInsentifPay,
     };
   };
 
-  const exportToExcel = () => {
-    const fileExtension = ".xlsx";
-    const excelData = data.map((user) => {
-      const payroll = calculatePayroll(user);
-      return {
-        NIK: user.nik,
-        NIP: user.nip,
-        Nama: user.fullname,
-        Jabatan: user.Position?.name || "-",
-        "Gaji Pokok": payroll.salary,
-        "Tunjangan (Rp)": payroll.totalAllowance,
-        "Potongan UserCost (Rp)": payroll.totalDeductionUserCost,
-        Hadir: payroll.hadirCount,
-        Alpha: payroll.alphaCount,
-        Sakit: payroll.sakitCount,
-        Cuti: payroll.cutiCount,
-        Perdin: payroll.perdinCount,
-        Lembur: payroll.overtimeCount,
-        "Potongan Terlambat (Rp)": payroll.lateDeduction,
-        "Potongan Alpha (Rp)": payroll.alphaDeduction,
-        "Total Potongan (Rp)":
-          payroll.totalDeduction + payroll.totalDeductionUserCost,
-        "Gaji Kotor (Rp)": payroll.grossSalary,
-        "Penghasilan Kena Pajak (Rp)": payroll.taxableIncome,
-        "PPh 5% (Rp)": payroll.pph,
-        "Take Home Pay (Rp)": payroll.takeHome,
-        "Permohonan Izin": payroll.permitCount,
-        "Izin Disetujui": payroll.permitApproved,
-        "Izin Pending": payroll.permitPending,
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(excelData, {
-      header: [
-        "NIK",
-        "NIP",
-        "Nama",
-        "Jabatan",
-        "Gaji Pokok",
-        "Tunjangan (Rp)",
-        "Potongan UserCost (Rp)",
-        "Hadir",
-        "Alpha",
-        "Sakit",
-        "Cuti",
-        "Perdin",
-        "Lembur",
-        "Potongan Terlambat (Rp)",
-        "Potongan Alpha (Rp)",
-        "Total Potongan (Rp)",
-        "Gaji Kotor (Rp)",
-        "Penghasilan Kena Pajak (Rp)",
-        "PPh 5% (Rp)",
-        "Take Home Pay (Rp)",
-        "Permohonan Izin",
-        "Izin Disetujui",
-        "Izin Pending",
-      ],
-    });
-
-    ws["!cols"] = [
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 25 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 18 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 10 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 },
-    ];
-
-    const wb = { Sheets: { Payroll: ws }, SheetNames: ["Payroll"] };
-    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const dataBlob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    saveAs(dataBlob, `Rekap_Payroll_${month}${fileExtension}`);
-  };
+  const exportToExcel = () => {};
 
   const exportAllPdf = async () => {
     if (!data.length) {
       return message.warning("Tidak ada data untuk dicetak PDF");
     }
-
-    setLoading(true);
-    try {
-      const doc = await PDFDocument.create();
-      const font = await doc.embedFont(StandardFonts.Helvetica);
-      let page = doc.addPage([595, 842]);
-      const { height } = page.getSize();
-      const lineHeight = 16;
-      let cursorY = height - 60;
-
-      page.drawText("Rekap Payroll Bulanan", {
-        x: 40,
-        y: cursorY,
-        size: 16,
-        font,
-        color: rgb(0.05, 0.05, 0.05),
-      });
-      page.drawText(`Bulan: ${moment(month).format("MMMM YYYY")}`, {
-        x: 40,
-        y: cursorY - 20,
-        size: 11,
-        font,
-        color: rgb(0.2, 0.2, 0.2),
-      });
-      cursorY -= 45;
-
-      const header = [
-        "No",
-        "NIK",
-        "Nama",
-        "Gaji Pokok",
-        "Tunjangan",
-        "Potongan",
-        "PPh",
-        "Take Home",
-      ];
-      const columnX = [40, 80, 140, 280, 340, 400, 460, 520];
-
-      const drawHeader = () => {
-        header.forEach((text, index) => {
-          page.drawText(text, {
-            x: columnX[index],
-            y: cursorY,
-            size: 10,
-            font,
-            color: rgb(0.1, 0.1, 0.1),
-          });
-        });
-        cursorY -= lineHeight;
-      };
-
-      drawHeader();
-
-      data.forEach((user, index) => {
-        const payroll = calculatePayroll(user);
-        if (cursorY < 80) {
-          page = doc.addPage([595, 842]);
-          cursorY = height - 60;
-          drawHeader();
-        }
-
-        page.drawText((index + 1).toString(), {
-          x: columnX[0],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        page.drawText(user.nik || "-", {
-          x: columnX[1],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        page.drawText(user.fullname || "-", {
-          x: columnX[2],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        page.drawText(IDRFormat(payroll.salary), {
-          x: columnX[3],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        page.drawText(IDRFormat(payroll.totalAllowance), {
-          x: columnX[4],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        page.drawText(
-          IDRFormat(payroll.totalDeduction + payroll.totalDeductionUserCost),
-          {
-            x: columnX[5],
-            y: cursorY,
-            size: 10,
-            font,
-          },
-        );
-        page.drawText(IDRFormat(payroll.pph), {
-          x: columnX[6],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        page.drawText(IDRFormat(payroll.takeHome), {
-          x: columnX[7],
-          y: cursorY,
-          size: 10,
-          font,
-        });
-        cursorY -= lineHeight;
-      });
-
-      const pdfBytes = await doc.save();
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
-        type: "application/pdf",
-      });
-      saveAs(blob, `Rekap_Payroll_All_${month}.pdf`);
-    } catch (error) {
-      console.error(error);
-      message.error("Gagal membuat PDF semua payroll");
-    } finally {
-      setLoading(false);
-    }
   };
 
-  const exportIndividualPdf = async (user: IUser) => {
+  const exportIndividualPdf = async (_user: IUser) => {
     setLoading(true);
-    try {
-      const payroll = calculatePayroll(user);
-      const doc = await PDFDocument.create();
-      const helvetica = await doc.embedFont(StandardFonts.Helvetica);
-      const page = doc.addPage([595, 842]);
-      const { height } = page.getSize();
-      const lineHeight = 18;
-      let cursorY = height - 60;
-
-      page.drawText("Slip Payroll Perorangan", {
-        x: 40,
-        y: cursorY,
-        size: 18,
-        font: helvetica,
-        color: rgb(0.05, 0.05, 0.05),
-      });
-      page.drawText(`Bulan: ${moment(month).format("MMMM YYYY")}`, {
-        x: 40,
-        y: cursorY - 24,
-        size: 12,
-        font: helvetica,
-        color: rgb(0.2, 0.2, 0.2),
-      });
-
-      cursorY -= 50;
-      const drawLine = (label: string, value: string) => {
-        page.drawText(label, {
-          x: 40,
-          y: cursorY,
-          size: 11,
-          font: helvetica,
-          color: rgb(0.1, 0.1, 0.1),
-        });
-        page.drawText(value, {
-          x: 360,
-          y: cursorY,
-          size: 11,
-          font: helvetica,
-          color: rgb(0.1, 0.1, 0.1),
-        });
-        cursorY -= lineHeight;
-      };
-
-      drawLine("Nama", user.fullname || "-");
-      drawLine("NIK", user.nik || "-");
-      drawLine("NIP", user.nip || "-");
-      drawLine("Jabatan", user.Position?.name || "-");
-      cursorY -= 10;
-      page.drawText("Rincian Payroll:", {
-        x: 40,
-        y: cursorY,
-        size: 12,
-        font: helvetica,
-        color: rgb(0.05, 0.05, 0.05),
-      });
-      cursorY -= lineHeight;
-      drawLine("Gaji Pokok", IDRFormat(payroll.salary));
-      drawLine("Tunjangan", IDRFormat(payroll.totalAllowance));
-      drawLine("Lembur (Rp)", IDRFormat(payroll.overtimePay));
-      drawLine("Potongan Terlambat", IDRFormat(payroll.lateDeduction));
-      drawLine("Potongan Alpha", IDRFormat(payroll.alphaDeduction));
-      drawLine("Potongan UserCost", IDRFormat(payroll.totalDeductionUserCost));
-      drawLine(
-        "Total Deduction",
-        IDRFormat(payroll.totalDeduction + payroll.totalDeductionUserCost),
-      );
-      drawLine("Gaji Bersih Sebelum Pajak", IDRFormat(payroll.netBeforeTax));
-      cursorY -= 10;
-
-      page.drawText("Perhitungan PPh:", {
-        x: 40,
-        y: cursorY,
-        size: 12,
-        font: helvetica,
-        color: rgb(0.05, 0.05, 0.05),
-      });
-      cursorY -= lineHeight;
-
-      page.drawText(`1. PTKP Bulanan = ${IDRFormat(PTKP_MONTHLY)}`, {
-        x: 40,
-        y: cursorY,
-        size: 11,
-        font: helvetica,
-      });
-      cursorY -= lineHeight;
-      page.drawText(
-        `2. Penghasilan Kena Pajak = Gaji Bersih Sebelum Pajak - PTKP Bulanan`,
-        {
-          x: 40,
-          y: cursorY,
-          size: 11,
-          font: helvetica,
-        },
-      );
-      cursorY -= lineHeight;
-      page.drawText(
-        `   = ${IDRFormat(payroll.netBeforeTax)} - ${IDRFormat(PTKP_MONTHLY)} = ${IDRFormat(payroll.taxableIncome)}`,
-        {
-          x: 40,
-          y: cursorY,
-          size: 11,
-          font: helvetica,
-        },
-      );
-      cursorY -= lineHeight;
-      page.drawText(`3. Tarif PPh = 5%`, {
-        x: 40,
-        y: cursorY,
-        size: 11,
-        font: helvetica,
-      });
-      cursorY -= lineHeight;
-      page.drawText(
-        `4. PPh = Penghasilan Kena Pajak x 5% = ${IDRFormat(payroll.pph)}`,
-        {
-          x: 40,
-          y: cursorY,
-          size: 11,
-          font: helvetica,
-        },
-      );
-      cursorY -= lineHeight * 2;
-
-      page.drawText("Hasil Akhir:", {
-        x: 40,
-        y: cursorY,
-        size: 12,
-        font: helvetica,
-        color: rgb(0.05, 0.05, 0.05),
-      });
-      cursorY -= lineHeight;
-      drawLine("PPh 5%", IDRFormat(payroll.pph));
-      drawLine("Take Home Pay", IDRFormat(payroll.takeHome));
-
-      const pdfBytes = await doc.save();
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], {
-        type: "application/pdf",
-      });
-      saveAs(
-        blob,
-        `Payroll_${user.fullname || user.nik || "pegawai"}_${month}.pdf`,
-      );
-    } catch (error) {
-      console.error(error);
-      message.error("Gagal membuat PDF perorangan");
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   };
 
   const columns: ColumnsType<IUser> = [
     {
-      title: "NIK",
-      dataIndex: "nik",
-      key: "nik",
-      width: 120,
+      title: "ID",
+      key: "id",
+      dataIndex: "id",
+      fixed: window.innerWidth > 600 ? "left" : undefined,
+      render(value, _record, index) {
+        return (
+          <>
+            <div>{(page - 1) * limit + index + 1}</div>
+            <div className="text-xs opacity-80">{value}</div>
+          </>
+        );
+      },
     },
     {
       title: "Nama",
       dataIndex: "fullname",
       key: "fullname",
-      render: (value) => <span className="font-semibold">{value}</span>,
+      render: (value, record) => (
+        <div>
+          <div className="font-semibold">{value}</div>
+          <div className="opacity-80 text-xs">@{record.nik}</div>
+        </div>
+      ),
     },
     {
       title: "Jabatan",
@@ -547,31 +219,132 @@ const PayrollPage = () => {
       align: "right",
     },
     {
-      title: "Tunjangan",
+      title: "Tunjangan Bulanan",
       key: "allowance",
       render: (_value, record) =>
-        IDRFormat(calculatePayroll(record).totalAllowance),
+        IDRFormat(calculatePayroll(record).allowancePay),
       align: "right",
     },
     {
-      title: "Potongan UserCost",
+      title: "Potongan Bulanan",
       key: "deductionUserCost",
       render: (_value, record) =>
-        IDRFormat(calculatePayroll(record).totalDeductionUserCost),
+        IDRFormat(calculatePayroll(record).deductionPay),
       align: "right",
     },
     {
-      title: "Total Potongan",
-      key: "deduction",
-      render: (_value, record) =>
-        IDRFormat(
-          calculatePayroll(record).totalDeduction +
-            calculatePayroll(record).totalDeductionUserCost,
-        ),
-      align: "right",
+      title: "Kehadiran",
+      key: "hadir",
+      render: (_value, record) => {
+        const temp = calculatePayroll(record);
+        return (
+          <div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-14">Hadir</span> <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.hadir.length}</span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-14">Alpha</span> <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.alpha.length}</span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-14">Cuti</span> <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.cuti.length}</span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-14">Sakit</span> <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.sakit.length}</span>
+            </div>
+          </div>
+        );
+      },
     },
     {
-      title: "PPh 5%",
+      title: "Detail Kehadiran 1",
+      key: "detail_hadir",
+      render: (_value, record) => {
+        const temp = calculatePayroll(record);
+        return (
+          <div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-18">Perdin</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.perdin.length}</span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-18">Terlambat</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.late.length}</span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-18">Pulang Awal</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.fastleave.length}</span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-18">Lembur</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">{temp.lembur.length}</span>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Detail Kehadiran 2",
+      key: "detail_cost",
+      render: (_value, record) => {
+        const temp = calculatePayroll(record);
+        return (
+          <div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-20">Alpa</span> <span className="w-4">:</span>
+              <span className="flex- justify-end">
+                {IDRFormat(temp.alphaPay)}
+              </span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-20">Terlambat</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">
+                {IDRFormat(temp.latePay)}
+              </span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-20">Pulang Awal</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">
+                {IDRFormat(temp.fastLeaveDeduction)}
+              </span>
+            </div>
+            <div className="opacity-80 text-xs flex justify-between">
+              <span className="w-20">Lembur</span>{" "}
+              <span className="w-4">:</span>
+              <span className="flex- justify-end">
+                {IDRFormat(temp.lemburPay)}
+              </span>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Insentif/Bonus",
+      key: "insntif",
+      render: (_value, record) => {
+        const temp = calculatePayroll(record);
+        return (
+          <CollapseList
+            items={temp.insentif.map(
+              (i) =>
+                `${i.name} : ${i.nominal_type === "RUPIAH" ? IDRFormat(i.nominal) : IDRFormat(record.salary * (i.nominal / 100))}`,
+            )}
+          />
+        );
+      },
+    },
+    {
+      title: "PPh 21",
       key: "pph",
       render: (_value, record) => IDRFormat(calculatePayroll(record).pph),
       align: "right",
@@ -583,19 +356,16 @@ const PayrollPage = () => {
       align: "right",
     },
     {
-      title: "Aksi",
+      title: "Cetak",
       key: "action",
       render: (_value, record) => (
         <Button
           type="primary"
-          icon={<Printer size={16} />}
+          icon={<Printer size={14} />}
           size="small"
           onClick={() => exportIndividualPdf(record)}
-        >
-          Cetak PDF
-        </Button>
+        ></Button>
       ),
-      width: 140,
     },
   ];
 
@@ -656,6 +426,8 @@ const PayrollPage = () => {
             rowKey={(record) => record.id}
             dataSource={data}
             columns={columns}
+            bordered
+            size="small"
             pagination={{
               current: page,
               pageSize: limit,
@@ -666,7 +438,10 @@ const PayrollPage = () => {
                 setLimit(pageSize || 100);
               },
             }}
-            scroll={{ x: 1000 }}
+            scroll={{
+              x: "max-content",
+              y: window.innerWidth > 600 ? "53vh" : "65vh",
+            }}
           />
         </Card>
       </div>

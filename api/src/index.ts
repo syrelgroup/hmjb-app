@@ -28,7 +28,7 @@ import gbookTypeRoute from "./modules/gbook_type/routes.js";
 import fileRoute from "./modules/file/routes.js";
 import logActivitiesRoute from "./modules/log-activities/routes.js";
 import collateralLendingRoute from "./modules/collateral_lending/routes.js";
-import { MainDashboard } from "./modules/route.js";
+import { GET_HOLIDAY, MainDashboard } from "./modules/route.js";
 import type { Role, User } from "@prisma/client";
 
 interface IUser extends User {
@@ -95,6 +95,7 @@ app.use("/gbook_type", middleware, gbookTypeRoute);
 
 // LOGS
 app.use("/log-activities", middleware, logActivitiesRoute);
+app.use("/holidays", middleware, GET_HOLIDAY);
 
 const PORT = process.env.APP_PORT || 5000;
 app.listen(PORT, () => {
