@@ -48,7 +48,7 @@ import { useEffect } from "react";
 function AppRouter() {
   const path = window.location.pathname;
   const navigate = useNavigate();
-  const { user, updatetoken, updateconfig } = useContext((state) => state);
+  const { updatetoken, updateconfig } = useContext((state) => state);
 
   useEffect(() => {
     (async () => {
