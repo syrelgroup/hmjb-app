@@ -16,6 +16,8 @@ import { IDRFormat } from "../utils/utilForm";
 import { PTKPDetail, type IPTKP, type IUser } from "../../libs/interface";
 import type { ColumnsType } from "antd/es/table";
 import { CollapseList } from "../utils/utilComp";
+import { printAllPayrol } from "../utils/pdfs/payrolls";
+import { printPayrol } from "../utils/pdfs/payroll";
 
 const PayrollPage = () => {
   const [loading, setLoading] = useState(false);
@@ -174,10 +176,12 @@ const PayrollPage = () => {
     if (!data.length) {
       return message.warning("Tidak ada data untuk dicetak PDF");
     }
+    printAllPayrol(data);
   };
 
   const exportIndividualPdf = async (_user: IUser) => {
     setLoading(true);
+    printPayrol(_user);
     setLoading(false);
   };
 

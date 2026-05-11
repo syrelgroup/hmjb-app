@@ -9,8 +9,10 @@ export default function App() {
   const { user, updatetoken, updateconfig } = useContext((state) => state);
 
   useEffect(() => {
-    updatetoken();
-    updateconfig();
+    (async () => {
+      updatetoken();
+      updateconfig();
+    })();
   }, []);
 
   return (

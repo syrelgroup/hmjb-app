@@ -75,9 +75,9 @@ export default function AbsenceConfig() {
           absence_config?.id,
         data: data,
       })
-      .then(() => {
+      .then(async () => {
         message.success("Update konfigurasi berhasil");
-        updateconfig();
+        await updateconfig();
       })
       .catch((err) => {
         console.log(err);

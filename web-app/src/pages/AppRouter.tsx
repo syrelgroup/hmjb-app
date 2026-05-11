@@ -43,10 +43,19 @@ import DailyReportAbsence from "./absensi/DailyReportAbsence";
 import InsentifPage from "./absensi/Insentif";
 import DashboardAbsensi from "./absensi/DashboardAbsensi";
 import PayrollPage from "./absensi/Payroll";
+import { useEffect } from "react";
 
 function AppRouter() {
   const path = window.location.pathname;
   const navigate = useNavigate();
+  const { user, updatetoken, updateconfig } = useContext((state) => state);
+
+  useEffect(() => {
+    (async () => {
+      updatetoken();
+      updateconfig();
+    })();
+  }, []);
 
   return (
     <main className="bg-slate-50">
