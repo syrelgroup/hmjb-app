@@ -686,7 +686,11 @@ const ProsesData = ({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"DISETUJUI" | "DITOLAK">("DISETUJUI");
   const [absence, setAbsence] = useState<IAbsence>(
-    user.Absence[0] || defaultAbsence,
+    record.start_date
+      ? moment(record.start_date).isSame(moment(), "day")
+        ? user.Absence[0]
+        : defaultAbsence
+      : user.Absence[0] || defaultAbsence,
   );
 
   const handleSubmit = async () => {
@@ -705,6 +709,7 @@ const ProsesData = ({
             userId: record.userId,
             Absence: {
               ...absence,
+              absence_status: record.type,
               ...(user.Absence[0] && {
                 description: user.Absence[0].description?.includes(record.type)
                   ? user.Absence[0].description

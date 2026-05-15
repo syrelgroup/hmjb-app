@@ -33,6 +33,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       take: limit,
       orderBy: { created_at: "desc" },
       include: {
+        Position: true,
         PermitAbsence: {
           where: {
             ...(month

@@ -454,8 +454,15 @@ export interface IPTKP {
 
 export const PTKPDetail: IPTKP[] = [
   { name: "TK/0", desc: "Belum Menikah", value: 54000000 },
+  { name: "TK/1", desc: "Belum Menikah", value: 58500000 },
+  { name: "TK/2", desc: "Belum Menikah", value: 63000000 },
+  { name: "TK/3+", desc: "Belum Menikah", value: 67500000 },
   { name: "K/0", desc: "Menikah (0 Anak)", value: 58500000 },
   { name: "K/1", desc: "Menikah (1 Anak)", value: 63000000 },
   { name: "K/2", desc: "Menikah (2 Anak)", value: 67500000 },
   { name: "K/3+", desc: "Menikah (3 Anak)", value: 72000000 },
+  { name: "KI/0", desc: "Kawin + Istri (0 Anak)", value: 112500000 },
+  { name: "KI/1", desc: "Kawin + Istri (1 Anak)", value: 117000000 },
+  { name: "KI/2", desc: "Kawin + Istri (2 Anak)", value: 121500000 },
+  { name: "KI/3+", desc: "Kawin + Istri (3 Anak)", value: 126000000 },
 ];

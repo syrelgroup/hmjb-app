@@ -61,6 +61,34 @@ const generate = (record: IUser) => {
 
     <div class="page" style="font-size: 12px;">
       <h1 class="text-center font-bold class="my-8"">REKAP GAJI BULANAN ${record.fullname.toUpperCase()}</h1>
+
+      <div class="my-10 flex flex-col gap-2">
+        <div class="flex gap-4">
+          <p class="w-24">Nama Lengkap</p>
+          <p class="w-4">:</p>
+          <p class="w-4">${record.fullname}</p>
+        </div>
+        <div class="flex gap-4">
+          <p class="w-24">NIK</p>
+          <p class="w-4">:</p>
+          <p class="w-4">${record.nik}</p>
+        </div>
+        <div class="flex gap-4">
+          <p class="w-24">NIP</p>
+          <p class="w-4">:</p>
+          <p class="w-4">${record.nip}</p>
+        </div>
+        <div class="flex gap-4">
+          <p class="w-24">Jabatan</p>
+          <p class="w-4">:</p>
+          <p class="w-4">${record.Position.name}</p>
+        </div>
+        <div class="flex gap-4">
+          <p class="w-24">Status PTKP</p>
+          <p class="w-4">:</p>
+          <p class="w-4">${record.ptkp}</p>
+        </div>
+      </div>
       
       <div class="flex gap-4 justify-between my-8">
         <div class="flex-1 p-2">

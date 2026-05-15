@@ -21,6 +21,7 @@ export const GET = async (req, res, next) => {
                     { username: { contains: search } },
                 ],
             }),
+            ...(req.user?.Role.data_status === "USER" && { id: req.user.id }),
         };
         const data = await prisma.user.findMany({
             where,
