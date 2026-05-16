@@ -123,34 +123,68 @@ export default function AbsenceWidget({
   };
 
   // Loop deteksi wajah otomatis secara Real-time
+  // const autoScanLoop = async () => {
+  //   if (!videoRef.current || isVerifyingRef.current || !openFace) return;
+
+  //   try {
+  //     // Deteksi langsung dari elemen video (tanpa render ke canvas manual terlebih dahulu)
+  //     const detection = await faceapi
+  //       .detectSingleFace(
+  //         videoRef.current,
+  //         new faceapi.TinyFaceDetectorOptions({
+  //           inputSize: 224,
+  //           scoreThreshold: 0.6,
+  //         }),
+  //       )
+  //       .withFaceLandmarks()
+  //       .withFaceDescriptor();
+
+  //     if (detection && !isVerifyingRef.current) {
+  //       // Kunci proses agar tidak mendeteksi ganda secara bersamaan
+  //       isVerifyingRef.current = true;
+  //       setScanStatus("Wajah terdeteksi! Memverifikasi...");
+
+  //       await processVerification(detection.descriptor);
+  //     }
+  //   } catch (error) {
+  //     console.error("Kesalahan saat auto-scan:", error);
+  //   }
+
+  //   // Lanjutkan loop jika belum terverifikasi / modal masih terbuka
+  //   if (!isVerifyingRef.current && openFace) {
+  //     animationFrameRef.current = requestAnimationFrame(autoScanLoop);
+  //   }
+  // };
   const autoScanLoop = async () => {
+    // Jika modal ditutup atau sedang dalam proses verifikasi API backend, hentikan loop
     if (!videoRef.current || isVerifyingRef.current || !openFace) return;
 
     try {
-      // Deteksi langsung dari elemen video (tanpa render ke canvas manual terlebih dahulu)
       const detection = await faceapi
         .detectSingleFace(
           videoRef.current,
           new faceapi.TinyFaceDetectorOptions({
             inputSize: 224,
-            scoreThreshold: 0.6,
+            scoreThreshold: 0.5, // Sedikit diturunkan ke 0.5 agar mendeteksi lebih cepat
           }),
         )
         .withFaceLandmarks()
         .withFaceDescriptor();
 
       if (detection && !isVerifyingRef.current) {
-        // Kunci proses agar tidak mendeteksi ganda secara bersamaan
+        // Kunci proses agar tidak mendeteksi ganda
         isVerifyingRef.current = true;
         setScanStatus("Wajah terdeteksi! Memverifikasi...");
 
         await processVerification(detection.descriptor);
+        return; // Keluar dari loop jika verifikasi sukses dijalankan
       }
     } catch (error) {
       console.error("Kesalahan saat auto-scan:", error);
     }
 
-    // Lanjutkan loop jika belum terverifikasi / modal masih terbuka
+    // PERBAIKAN: Pindahkan ke sini!
+    // Loop hanya akan memanggil frame berikutnya SETELAH faceapi selesai memproses frame saat ini
     if (!isVerifyingRef.current && openFace) {
       animationFrameRef.current = requestAnimationFrame(autoScanLoop);
     }
@@ -168,7 +202,7 @@ export default function AbsenceWidget({
         const isMatch = compareFaces(
           capturedDescriptor,
           referenceDescriptor,
-          0.45,
+          0.6,
         );
 
         if (!isMatch) {
@@ -642,7 +676,7 @@ const CalculateDistance = (
 function compareFaces(
   captured: Float32Array,
   refference: Float32Array,
-  distanceThreshold = 0.45,
+  distanceThreshold = 0.6,
 ) {
   const distance = faceapi.euclideanDistance(captured, refference);
   return distance < distanceThreshold;
