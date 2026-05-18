@@ -731,9 +731,7 @@ const UpsertData = ({
                       // Langsung hapus dari array, baik item baru maupun yang sudah ada
                       setData({
                         ...data,
-                        UserCost: data.UserCost?.filter(
-                          (_, i) => i !== uci,
-                        ),
+                        UserCost: data.UserCost?.filter((_, i) => i !== uci),
                       });
                     }}
                   ></Button>

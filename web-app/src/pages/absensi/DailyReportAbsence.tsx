@@ -207,15 +207,15 @@ const DailyReportAbsence = () => {
     // Range dari tanggal 21 bulan sebelumnya sampai tanggal 20 bulan sekarang
     const currentMonth = moment(month);
     const previousMonth = currentMonth.clone().subtract(1, "month");
-    
+
     // Start: tanggal 21 bulan sebelumnya
     const startDate = previousMonth.clone().date(21);
     // End: tanggal 20 bulan sekarang
     const endDate = currentMonth.clone().date(20);
-    
+
     // Hitung jumlah hari antara start dan end (inclusive)
     const daysCount = endDate.diff(startDate, "days") + 1;
-    
+
     return Array.from({ length: daysCount }, (_, i) => {
       const dateStr = startDate.clone().add(i, "days").format("YYYY-MM-DD");
       const day = moment(dateStr).date();
