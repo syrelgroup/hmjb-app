@@ -102,11 +102,11 @@ export const DetailSubmissionDebt = ({
               <p className="flex-1">
                 <Tag
                   color={
-                    submission.approve_status === "SELESAI"
+                    ["AKTIF", "LUNAS"].includes(submission.approve_status)
                       ? "green"
                       : submission.approve_status === "PENDING"
                         ? "green"
-                        : "red"
+                        : "cyan"
                   }
                   variant="solid"
                 >

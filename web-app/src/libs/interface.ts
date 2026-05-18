@@ -175,7 +175,7 @@ export interface IInsentif {
   description: string | null;
   nominal: number;
   nominal_type: "RUPIAH" | "PERCENT";
-  approve_status: EArsipStatus;
+  approve_status: EPermitStatus;
   file: string | null;
   status: boolean;
   created_at: Date;

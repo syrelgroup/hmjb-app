@@ -251,11 +251,11 @@ export default function DebiturEArsip() {
               Permohonan{" "}
               <span
                 className={`text-xs text-white font-semibold px-2 py-1 rounded-full ${
-                  record.approve_status === "DITOLAK"
-                    ? "bg-red-500"
-                    : record.approve_status === "PENDING"
-                      ? "bg-orange-500"
-                      : "bg-green-500"
+                  record.approve_status === "PENDING"
+                    ? "bg-orange-500"
+                    : ["AKTIF", "LUNAS"].includes(record.approve_status)
+                      ? "bg-green-500"
+                      : "text-cyan-500"
                 }`}
               >
                 {record.approve_status}

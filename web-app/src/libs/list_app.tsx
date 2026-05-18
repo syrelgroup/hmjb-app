@@ -102,7 +102,7 @@ export const menus: IMenu[] = [
         can_access: ["read"],
       },
       {
-        name: "Debitur",
+        name: "Data Nasabah",
         path: "/app/earsip/debitur",
         icon: <FolderArchive size={15} />,
         need_access: true,
@@ -116,7 +116,7 @@ export const menus: IMenu[] = [
         can_access: ["read", "write", "update", "delete"],
       },
       {
-        name: "Permohonan",
+        name: "Daftar Rekening",
         path: "/app/earsip/submission",
         icon: <FormInput size={15} />,
         need_access: true,

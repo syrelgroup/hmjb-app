@@ -2,14 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import moment from "moment";
 import type { IUser } from "../../libs/interface";
 import api from "../../libs/api";
-import {
-  Calendar,
-  FileSpreadsheet,
-  Eye,
-  Search,
-  Filter,
-  User,
-} from "lucide-react";
+import { Calendar, FileSpreadsheet, Eye, Search, User } from "lucide-react";
 import {
   Input,
   Pagination,
