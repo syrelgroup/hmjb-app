@@ -40,6 +40,7 @@ import { Link } from "react-router-dom";
 import { IDRFormat } from "../utils/utilForm";
 const { RangePicker } = DatePicker;
 import dayjs from "dayjs";
+import { ExportImport } from "./exportimport";
 
 export default function DataSubmission() {
   const [loading, setLoading] = useState(false);
@@ -752,7 +753,7 @@ export default function DataSubmission() {
       {/* --- FILTER & SEARCH --- */}
       <div className="bg-white p-2">
         <div className="bg-white  flex flex-wrap items-center gap-4 mb-2">
-          <div className="flex-1 flex">
+          <div className="flex-1 flex gap-2">
             {hasAccess(window.location.pathname, "write") && (
               <a href="/app/earsip/submission/upsert">
                 <Button
@@ -765,6 +766,7 @@ export default function DataSubmission() {
                 </Button>
               </a>
             )}
+            <ExportImport />
           </div>
           <div className="flex-1 flex items-center justify-end gap-2">
             <Input.Search

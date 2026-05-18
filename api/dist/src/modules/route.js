@@ -67,8 +67,8 @@ export const MainDashboard = async (req, res, next) => {
     });
 };
 export const GET_HOLIDAY = async (req, res, next) => {
-    let { year, month } = req.query;
-    const responseApi = await fetch(`https://api-hari-libur.vercel.app/api?year=${year}&month=${month}`);
+    let { year } = req.query;
+    const responseApi = await fetch(`https://api-hari-libur.vercel.app/api?year=${year}`);
     const data = await responseApi.json();
     return ResponseServer(res, 200, {
         data: data.data,

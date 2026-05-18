@@ -29,23 +29,26 @@ export const GET = async (req, res, next) => {
             take: limit,
             orderBy: { created_at: "desc" },
             include: {
+                Position: true,
                 PermitAbsence: {
                     where: {
                         ...(month
                             ? {
                                 created_at: {
                                     gte: moment(month)
-                                        .startOf("month")
+                                        .set("date", 21)
+                                        .startOf("day")
                                         .toDate(),
                                     lte: moment(month)
-                                        .endOf("month")
+                                        .set("date", 20)
+                                        .endOf("day")
                                         .toDate(),
                                 },
                             }
                             : {
                                 created_at: {
-                                    gte: moment().startOf("month").toDate(),
-                                    lte: moment().endOf("month").toDate(),
+                                    gte: moment().set("date", 21).startOf("day").toDate(),
+                                    lte: moment().set("date", 20).endOf("day").toDate(),
                                 },
                             }),
                         status: true,
@@ -57,49 +60,52 @@ export const GET = async (req, res, next) => {
                             ? {
                                 created_at: {
                                     gte: moment(month)
-                                        .startOf("month")
+                                        .set("date", 21)
+                                        .startOf("day")
                                         .toDate(),
                                     lte: moment(month)
-                                        .endOf("month")
+                                        .set("date", 20)
+                                        .endOf("day")
                                         .toDate(),
                                 },
                             }
                             : {
                                 created_at: {
-                                    gte: moment().startOf("month").toDate(),
-                                    lte: moment().endOf("month").toDate(),
+                                    gte: moment().set("date", 21).startOf("day").toDate(),
+                                    lte: moment().set("date", 20).endOf("day").toDate(),
                                 },
                             }),
                     },
                 },
                 UserCost: {
                     where: {
-                        ...(month
-                            ? {
-                                OR: [
-                                    {
-                                        start_at: {
-                                            lte: moment(month)
-                                                .endOf("month")
-                                                .toDate(),
-                                        },
-                                        end_at: {
-                                            gte: moment(month)
-                                                .startOf("month")
-                                                .toDate(),
-                                        },
-                                    },
-                                    {
-                                        start_at: {
-                                            lte: moment(month)
-                                                .endOf("month")
-                                                .toDate(),
-                                        },
-                                        end_at: null,
-                                    },
-                                ],
-                            }
-                            : {}),
+                        // ...(month
+                        //   ? {
+                        //       OR: [
+                        //         {
+                        //           start_at: {
+                        //             lte: moment(month as string)
+                        //               .endOf("month")
+                        //               .toDate(),
+                        //           },
+                        //           end_at: {
+                        //             gte: moment(month as string)
+                        //               .startOf("month")
+                        //               .toDate(),
+                        //           },
+                        //         },
+                        //         {
+                        //           start_at: {
+                        //             lte: moment(month as string)
+                        //               .endOf("month")
+                        //               .toDate(),
+                        //           },
+                        //           end_at: null,
+                        //         },
+                        //       ],
+                        //     }
+                        //   : {}),
+                        end_at: null,
                     },
                 },
                 Insentif: {
@@ -108,17 +114,19 @@ export const GET = async (req, res, next) => {
                             ? {
                                 created_at: {
                                     gte: moment(month)
-                                        .startOf("month")
+                                        .set("date", 21)
+                                        .startOf("day")
                                         .toDate(),
                                     lte: moment(month)
-                                        .endOf("month")
+                                        .set("date", 20)
+                                        .endOf("day")
                                         .toDate(),
                                 },
                             }
                             : {
                                 created_at: {
-                                    gte: moment().startOf("month").toDate(),
-                                    lte: moment().endOf("month").toDate(),
+                                    gte: moment().set("date", 21).startOf("day").toDate(),
+                                    lte: moment().set("date", 20).endOf("day").toDate(),
                                 },
                             }),
                         status: true,

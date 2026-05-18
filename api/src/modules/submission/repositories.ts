@@ -8,6 +8,7 @@ import type {
   EGuaranteeStatus,
   Prisma,
 } from "@prisma/client";
+import xlsx from "xlsx";
 
 export const GET = async (req: Request, res: Response, next: NextFunction) => {
   let {
@@ -337,6 +338,222 @@ export const PATCH = async (
   }
 };
 
+export const IMPORT = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Mohon unggah sebuah file!" });
+    }
+
+    const workbook = xlsx.read(req.file.buffer, {
+      type: "buffer",
+      cellDates: true, // <-- WAJIB TAMBAHKAN INI
+      dateNF: "dd/mm/yyyy",
+    });
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const jsonData = xlsx.utils.sheet_to_json(sheet);
+
+    for (const data of jsonData) {
+      await prisma.$transaction(
+        async (tx) => {
+          let typeDebt = await tx.submissionType.findFirst({
+            where: { name: String((data as any).jenis_pemohon) },
+          });
+          if (!typeDebt) {
+            const genSubTypeId = await generateSubTypeId();
+            typeDebt = await tx.submissionType.create({
+              data: {
+                id: genSubTypeId,
+                name: String((data as any).jenis_pemohon),
+              },
+            });
+          }
+
+          let productType = await tx.productType.findFirst({
+            where: { name: String((data as any).tipe_produk) },
+          });
+          if (!productType) {
+            const pTypeId = await generateProdTypeId();
+            productType = await tx.productType.create({
+              data: {
+                id: pTypeId,
+                name: String((data as any).tipe_produk),
+              },
+            });
+          }
+          let product = await tx.product.findFirst({
+            where: { name: String((data as any).produk) },
+          });
+          if (!product) {
+            product = await tx.product.create({
+              data: {
+                name: String((data as any).produk),
+                productTypeId: productType.id,
+              },
+            });
+          }
+
+          let usr = await tx.user.findFirst({
+            where: {
+              OR: [
+                { nip: String((data as any).nip_petugas) },
+                { fullname: String((data as any).nama_petugas) },
+              ],
+            },
+          });
+          if (!usr) {
+            const usdId = await generateUsrId();
+            usr = await tx.user.create({
+              data: {
+                id: usdId,
+                fullname: String((data as any).nama_petugas),
+                nip: String((data as any).nip_petugas),
+                username: String((data as any).nama_petugas).toLowerCase(),
+                password: String((data as any).nama_petugas).toLowerCase(),
+                salary: 0,
+                absen_method: "BUTTON",
+                ptkp: "TK/0",
+                roleId: "RL02",
+                positionId: "POS02",
+              },
+            });
+          }
+
+          let debt = await tx.debitur.findFirst({
+            where: {
+              OR: [
+                { cif: String((data as any).cif) },
+                { nik: String((data as any).nik) },
+              ],
+            },
+          });
+
+          if (!debt) {
+            const genDebtId = await generateDebiturId();
+            debt = await tx.debitur.create({
+              data: {
+                id: genDebtId,
+                cif: String((data as any).cif),
+                nik: String((data as any).nik),
+                fullname: String((data as any).nama),
+                birthplace: String((data as any).tempat_lahir),
+                birthdate: moment(
+                  (data as any).tanggal_lahir,
+                  "DD/MM/YYYY",
+                ).toDate(),
+                address: String((data as any).alamat),
+                phone: String((data as any).no_telepon),
+                email: String((data as any).email),
+                submissionTypeId: typeDebt.id,
+              },
+            });
+          }
+
+          let mitra = null;
+          if ((data as any).nama_mitra) {
+            const mitraFind = await tx.mitra.findFirst({
+              where: { name: String((data as any).nama_mitra) },
+            });
+            if (mitraFind) {
+              mitra = mitraFind;
+            } else {
+              const mitId = await generateMitraId();
+              mitra = await tx.mitra.create({
+                data: {
+                  id: mitId,
+                  name: String((data as any).nama_mitra),
+                },
+              });
+            }
+          }
+          let payOffice = null;
+          if ((data as any).kantor_bayar) {
+            const kabay = await tx.payOffice.findFirst({
+              where: { name: String((data as any).kantor_bayar) },
+            });
+            if (kabay) {
+              payOffice = kabay;
+            } else {
+              const kbyId = await generateKbyId();
+              payOffice = await tx.payOffice.create({
+                data: {
+                  id: kbyId,
+                  name: String((data as any).kantor_bayar),
+                },
+              });
+            }
+          }
+          let insur = null;
+          if ((data as any).asuransi) {
+            const kabay = await tx.insurance.findFirst({
+              where: { name: String((data as any).asuransi) },
+            });
+            if (kabay) {
+              insur = kabay;
+            } else {
+              const insId = await generateInscId();
+              insur = await tx.insurance.create({
+                data: {
+                  id: insId,
+                  name: String((data as any).asuransi),
+                },
+              });
+            }
+          }
+
+          const genId = await generateId();
+          await tx.submission.create({
+            data: {
+              id: genId,
+              debiturId: debt.id,
+              mitraId: mitra?.id,
+              insuranceId: insur?.id,
+              payOfficeId: payOffice?.id,
+              value: parseInt((data as any).nilai || "0"),
+              tenor: parseInt((data as any).tenor || "0"),
+              productId: product.id,
+              userId: usr.id,
+              createdById: usr.id,
+              drawer_code: String((data as any).no_lemari) || "-",
+              purpose: String((data as any).tujuan_penggunaan) || "-",
+              approve_status: (data as any).status_nasabah,
+              doc_status: (data as any).status_dokumen,
+              guarantee_status: (data as any).status_jaminan,
+              flagging_status: (data as any).status_flagging,
+              account_number: String((data as any).no_rekening),
+              created_at: moment(
+                (data as any).tanggal_dibuat,
+                "DD/MM/YYYY",
+              ).toDate(),
+            },
+          });
+          return true;
+        },
+        {
+          // Opsi untuk memperpanjang napas transaksi (Satuan Milliseconds)
+          timeout: 60000 * 10, // 60 Detik (Sangat cukup untuk ratusan data baris)
+        },
+      );
+    }
+
+    res.status(200).json({
+      message: "Data berhasil diimport!",
+      total_data: jsonData.length,
+    });
+  } catch (err) {
+    console.log(err);
+    return ResponseServer(res, 500, {
+      msg: (err as any).message || "Internal Server Error",
+    });
+  }
+};
+
 async function generateId() {
   const prefix = "SID";
   const padLength = 4;
@@ -347,5 +564,47 @@ async function generateDebiturId() {
   const prefix = "DEBT";
   const padLength = 4;
   const lastRecord = await prisma.debitur.count({});
+  return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+
+async function generateSubTypeId() {
+  const prefix = "STYPE";
+  const padLength = 2;
+  const lastRecord = await prisma.submissionType.count({});
+  return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+
+async function generateProdTypeId() {
+  const prefix = "PTYPE";
+  const padLength = 2;
+  const lastRecord = await prisma.productType.count({});
+  return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+
+async function generateUsrId() {
+  const prefix = "USR";
+  const padLength = 3;
+  const lastRecord = await prisma.user.count({});
+  return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+
+async function generateMitraId() {
+  const prefix = "MITRA";
+  const padLength = 2;
+  const lastRecord = await prisma.mitra.count();
+  return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+
+async function generateKbyId() {
+  const prefix = "PAYOF";
+  const padLength = 2;
+  const lastRecord = await prisma.payOffice.count();
+  return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+
+async function generateInscId() {
+  const prefix = "INSC";
+  const padLength = 2;
+  const lastRecord = await prisma.insurance.count();
   return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
 }

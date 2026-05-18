@@ -145,6 +145,7 @@ export const PUT = async (req, res, next) => {
                             fast_leave_deduction: abs.fast_leave_deduction,
                             late_deduction: abs.late_deduction,
                             lemburan: abs.lemburan,
+                            ...abs,
                         },
                         create: { ...abs },
                     });
