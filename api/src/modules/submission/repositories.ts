@@ -6,7 +6,6 @@ import type {
   EArsipStatus,
   EFlaggingStatus,
   EGuaranteeStatus,
-  EPermitStatus,
   Prisma,
 } from "@prisma/client";
 
@@ -25,6 +24,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
     submissionTypeId,
     mitraId,
     payOfficeId,
+    insuranceId,
   } = req.query;
   page = Number(page);
   limit = Number(limit);
@@ -61,6 +61,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       ...(productId && { productId: productId as string }),
       ...(mitraId && { mitraId: mitraId as string }),
       ...(payOfficeId && { payOfficeId: payOfficeId as string }),
+      ...(insuranceId && { insuranceId: insuranceId as string }),
       ...(approve_status && {
         approve_status: approve_status as EArsipStatus,
       }),
@@ -109,6 +110,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
         Mitra: true,
         CollateralLending: true,
         PayOffice: true,
+        Insurance: true,
       },
       orderBy: { created_at: "desc" },
     });
@@ -147,6 +149,7 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
       CollateralLending,
       CreatedBy,
       PayOffice,
+      Insurance,
       ...savedSub
     } = body;
     const genId = await generateId();
@@ -216,6 +219,7 @@ export const PUT = async (req: Request, res: Response, next: NextFunction) => {
       CollateralLending,
       CreatedBy,
       PayOffice,
+      Insurance,
       ...savedSub
     } = body;
     const { SubmissionType, Visit, Submission, ...savedeb } = Debitur;
@@ -317,6 +321,7 @@ export const PATCH = async (
         PermitFileDetail: true,
         Mitra: true,
         PayOffice: true,
+        Insurance: true,
       },
     });
     if (!find) return ResponseServer(res, 404, { msg: "Not found data" });

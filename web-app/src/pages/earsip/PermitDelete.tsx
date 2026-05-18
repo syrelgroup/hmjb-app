@@ -187,9 +187,7 @@ const PermitDelete = () => {
                   ? "red"
                   : record.permit_status === "PENDING"
                     ? "orange"
-                    : record.permit_status === "SELESAI"
-                      ? "cyan"
-                      : "green"
+                    : "green"
               }
               variant="solid"
             >

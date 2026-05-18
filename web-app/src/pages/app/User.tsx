@@ -436,11 +436,17 @@ const UpsertData = ({
 
   const handleSubmit = async () => {
     setLoading(true);
+    // Filter UserCost: hanya kirim yang belum di-hapus (end_at kosong)
+    const filteredData = {
+      ...data,
+      UserCost: data.UserCost?.filter((uc) => !uc.end_at) || [],
+    };
+
     await api
       .request({
         url: `${import.meta.env.VITE_API_URL}/user?id=` + record?.id,
         method: record ? "PUT" : "POST",
-        data: data,
+        data: filteredData,
       })
       .then((res) => {
         if (res.data.status === 200) {
@@ -721,22 +727,15 @@ const UpsertData = ({
                     size="small"
                     icon={<DeleteOutlined />}
                     danger
-                    onClick={() =>
-                      uc.id === ""
-                        ? setData({
-                            ...data,
-                            UserCost: data.UserCost?.filter(
-                              (_, i) => i !== uci,
-                            ),
-                          })
-                        : setData({
-                            ...data,
-                            UserCost: data.UserCost?.map((u, i) => ({
-                              ...u,
-                              ...(uci === i && { end_at: new Date() }),
-                            })),
-                          })
-                    }
+                    onClick={() => {
+                      // Langsung hapus dari array, baik item baru maupun yang sudah ada
+                      setData({
+                        ...data,
+                        UserCost: data.UserCost?.filter(
+                          (_, i) => i !== uci,
+                        ),
+                      });
+                    }}
                   ></Button>
                 </div>
               </div>

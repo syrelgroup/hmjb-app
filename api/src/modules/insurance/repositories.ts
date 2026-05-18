@@ -9,7 +9,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
   const skip = (page - 1) * limit;
 
   try {
-    const data = await prisma.payOffice.findMany({
+    const data = await prisma.insurance.findMany({
       where: {
         status: true,
         ...(search && { name: { contains: search as string } }),
@@ -20,14 +20,14 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       orderBy: { id: "asc" },
     });
 
-    const total = await prisma.payOffice.count({
+    const total = await prisma.insurance.count({
       where: {
         status: true,
         ...(search && { name: { contains: search as string } }),
       },
     });
     return ResponseServer(res, 200, {
-      msg: "GET /pay_office",
+      msg: "GET /insurance",
       page,
       limit,
       search,
@@ -47,7 +47,7 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const genId = await generateId();
     const { id, Submission, ...saved } = body;
-    await prisma.payOffice.create({
+    await prisma.insurance.create({
       data: {
         ...saved,
         id: body.id && body.id !== "" ? body.id : genId,
@@ -72,13 +72,13 @@ export const PUT = async (req: Request, res: Response, next: NextFunction) => {
         msg: "ID Not found",
         params: req.params,
       });
-    const find = await prisma.payOffice.findFirst({
+    const find = await prisma.insurance.findFirst({
       where: { id: id as string },
     });
     if (!find) return ResponseServer(res, 404, { msg: "Not found data" });
 
     const { Submission, ...saved } = body;
-    await prisma.payOffice.update({
+    await prisma.insurance.update({
       where: { id: find.id },
       data: {
         ...saved,
@@ -104,12 +104,12 @@ export const DELETE = async (
 
   try {
     if (!id) return ResponseServer(res, 404, { msg: "Not found data" });
-    const find = await prisma.payOffice.findFirst({
+    const find = await prisma.insurance.findFirst({
       where: { id: id as string },
     });
     if (!find) return ResponseServer(res, 404, { msg: "Not found data" });
 
-    await prisma.payOffice.update({
+    await prisma.insurance.update({
       where: { id: find.id },
       data: { status: false },
     });
@@ -124,8 +124,8 @@ export const DELETE = async (
 };
 
 async function generateId() {
-  const prefix = "PAYOF";
+  const prefix = "INSC";
   const padLength = 2;
-  const lastRecord = await prisma.payOffice.count();
+  const lastRecord = await prisma.insurance.count();
   return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
 }

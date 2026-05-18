@@ -11,6 +11,7 @@ import subTypeRoute from "./modules/sub_type/routes.js";
 import productTypeRoute from "./modules/product_type/routes.js";
 import mitraRoute from "./modules/mitra/routes.js";
 import payOfficeRoute from "./modules/pay_office/routes.js";
+import insuranceRoute from "./modules/insurance/routes.js";
 import submissionRoute from "./modules/submission/routes.js";
 import visitCategoryRoute from "./modules/visit_category/routes.js";
 import visitStatusRoute from "./modules/visit_status/routes.js";
@@ -68,6 +69,7 @@ app.use("/profile", middleware, profileRoute);
 app.use("/debitur", middleware, debiturRoute);
 app.use("/mitra", middleware, mitraRoute);
 app.use("/pay_office", middleware, payOfficeRoute);
+app.use("/insurance", middleware, insuranceRoute);
 app.use("/file", middleware, fileRoute);
 
 // EARSIP

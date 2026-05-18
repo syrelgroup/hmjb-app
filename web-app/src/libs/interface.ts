@@ -337,6 +337,16 @@ export interface IPayOffice {
   updated_at: Date;
   Submission?: [];
 }
+export interface IInsurance {
+  id: string;
+  name: string;
+  description: string | null;
+
+  status: boolean;
+  created_at: Date;
+  updated_at: Date;
+  Submission?: [];
+}
 
 export interface ISubmission {
   id: string;
@@ -362,6 +372,7 @@ export interface ISubmission {
   Files: IFile[];
   Mitra?: IMitra | null;
   PayOffice?: IPayOffice | null;
+  Insurance?: IInsurance | null;
   CollateralLending?: ICollateralLending[];
   Visit?: IVisit[];
   PermitFileDetail?: IPermitFileDetail[];
@@ -370,6 +381,7 @@ export interface ISubmission {
   userId: string;
   mitraId?: string | null;
   payOfficeId?: string | null;
+  insuranceId?: string | null;
   createdById: string;
 }
 

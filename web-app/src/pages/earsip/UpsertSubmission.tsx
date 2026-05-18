@@ -7,6 +7,7 @@ import type {
   IComments,
   IDebitur,
   IFile,
+  IInsurance,
   IMitra,
   IPayOffice,
   IProduct,
@@ -35,6 +36,7 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
   const [subType, setSubType] = useState<ISubType[]>([]);
   const [mitras, setMitras] = useState<IMitra[]>([]);
   const [pays, setPays] = useState<IPayOffice[]>([]);
+  const [insc, setInsc] = useState<IInsurance[]>([]);
   const [products, setProducts] = useState<IProduct[]>([]);
   const [users, setUsers] = useState<IUser[]>([]);
   const [search, setSearch] = useState("");
@@ -87,6 +89,12 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
           url: `${import.meta.env.VITE_API_URL}/pay_office`,
         })
         .then((res) => setPays(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: `${import.meta.env.VITE_API_URL}/insurance`,
+        })
+        .then((res) => setInsc(res.data.data));
     })();
   }, []);
 
@@ -668,6 +676,26 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
                 type="option"
               />
             </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Asuransi"
+                value={data.insuranceId}
+                onchage={(e: string) => {
+                  setData({
+                    ...data,
+                    insuranceId: e,
+                  });
+                  record &&
+                    handleChangeRecord(
+                      "edit Asuransi",
+                      activities,
+                      setActivities,
+                    );
+                }}
+                options={insc.map((m) => ({ label: m.name, value: m.id }))}
+                type="option"
+              />
+            </Col>
           </Row>
         </Card>
         <Card
@@ -991,6 +1019,7 @@ const defaultData: ISubmission = {
   PayOffice: null,
   mitraId: null,
   payOfficeId: null,
+  insuranceId: null,
   createdById: "",
 };
 

@@ -23,6 +23,7 @@ import {
   BankOutlined,
   BranchesOutlined,
   DollarCircleOutlined,
+  SecurityScanOutlined,
 } from "@ant-design/icons";
 
 export type AppType = "earsip" | "callreport" | "absensi" | "guestbook" | "all";
@@ -305,6 +306,13 @@ export const menus: IMenu[] = [
     name: "Kantor Bayar",
     path: "/app/pay_office",
     icon: <BankOutlined />,
+    need_access: true,
+    can_access: ["read", "write", "update", "delete"],
+  },
+  {
+    name: "Asuransi",
+    path: "/app/insurance",
+    icon: <SecurityScanOutlined />,
     need_access: true,
     can_access: ["read", "write", "update", "delete"],
   },

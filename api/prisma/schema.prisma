@@ -250,6 +250,8 @@ model Submission {
   Visit             Visit[]
   PayOffice         PayOffice?          @relation(fields: [payOfficeId], references: [id])
   payOfficeId       String?
+  Insurance         Insurance?          @relation(fields: [insuranceId], references: [id])
+  insuranceId       String?
 }
 
 model CollateralLending {
@@ -313,6 +315,17 @@ model PermitFileDetail {
 }
 
 model PayOffice {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  status     Boolean      @default(true)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @default(now())
+  Submission Submission[]
+}
+
+model Insurance {
   id          String  @id @default(uuid())
   name        String
   description String?

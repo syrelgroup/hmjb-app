@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import type {
   IActionPage,
   ICollateralLending,
+  IInsurance,
   IMitra,
   IPageProps,
   IPayOffice,
@@ -58,6 +59,7 @@ export default function DataSubmission() {
     submissionTypeId: "",
     mitraId: "",
     payOfficeId: "",
+    insuranceId: "",
   });
   const [action, setAction] = useState<IActionPage<ISubmission>>({
     upsert: false,
@@ -72,6 +74,7 @@ export default function DataSubmission() {
   const [productTypes, setProductTypes] = useState<IProductType[]>([]);
   const [mitras, setMitras] = useState<IMitra[]>([]);
   const [pays, setPays] = useState<IPayOffice[]>([]);
+  const [insc, setInsc] = useState<IInsurance[]>([]);
 
   const getData = async () => {
     setLoading(true);
@@ -92,6 +95,7 @@ export default function DataSubmission() {
           submissionTypeId: pageprops.submissionTypeId,
           mitraId: pageprops.mitraId,
           payOfficeId: pageprops.payOfficeId,
+          insuranceId: pageprops.insuranceId,
           backdate: pageprops.backdate ? pageprops.backdate.toString() : "",
         },
       })
@@ -152,6 +156,12 @@ export default function DataSubmission() {
           url: `${import.meta.env.VITE_API_URL}/pay_office`,
         })
         .then((res) => setPays(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: `${import.meta.env.VITE_API_URL}/insurance`,
+        })
+        .then((res) => setInsc(res.data.data));
     })();
   }, []);
 
@@ -174,6 +184,7 @@ export default function DataSubmission() {
     pageprops.doc_status,
     pageprops.mitraId,
     pageprops.payOfficeId,
+    pageprops.insuranceId,
   ]);
 
   const columns: TableProps<ISubmission>["columns"] = [
@@ -279,7 +290,7 @@ export default function DataSubmission() {
       },
     },
     {
-      title: "Mitra",
+      title: "Mitra & Kantor Bayar",
       key: "mitra",
       dataIndex: "mitra",
       render(_value, record, _index) {
@@ -287,6 +298,18 @@ export default function DataSubmission() {
           <div>
             <div>{record.Mitra?.name}</div>
             <div className="opacity-80 text-xs">{record.PayOffice?.name}</div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Asuransi",
+      key: "insurance",
+      dataIndex: "insurance",
+      render(_value, record, _index) {
+        return (
+          <div>
+            <div>{record.Insurance?.name}</div>
           </div>
         );
       },
@@ -573,6 +596,20 @@ export default function DataSubmission() {
         />
       </div>
       <div className="flex flex-col w-full">
+        <p className="mb-1">Asuransi</p>
+        <Select
+          placeholder="Pilih Asuransi.."
+          className="w-full"
+          options={insc.map((t) => ({ label: t.name, value: t.id }))}
+          onChange={(val) => setPageprops({ ...pageprops, insuranceId: val })}
+          allowClear
+          value={pageprops.insuranceId}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+      <div className="flex flex-col w-full">
         <p className="mb-1">Status Jaminan</p>
         <Select
           placeholder="Pilih status jaminan.."
@@ -690,6 +727,7 @@ export default function DataSubmission() {
               submissionTypeId: "",
               mitraId: "",
               payOfficeId: "",
+              insuranceId: "",
             })
           }
         >
@@ -770,6 +808,7 @@ export default function DataSubmission() {
           size="small"
           loading={loading}
           rowKey={"id"}
+          bordered
           scroll={{
             x: "max-content",
             y: window.innerWidth > 600 ? "53vh" : "65vh",

@@ -1,23 +1,23 @@
 import { App, Button, Input, Modal, Table, type TableProps } from "antd";
 import { Plus, Edit, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { IActionPage, IPageProps, IPayOffice } from "../../libs/interface";
+import type { IActionPage, IInsurance, IPageProps } from "../../libs/interface";
 import type { HookAPI } from "antd/es/modal/useModal";
 import api from "../../libs/api";
 import useContext from "../../libs/context";
 import { CollapseText } from "../utils/utilComp";
 import { InputUtil } from "../utils/utilForm";
 
-export default function DataPayOffice() {
+export default function DataInsurance() {
   const [loading, setLoading] = useState(false);
-  const [pageprops, setPageprops] = useState<IPageProps<IPayOffice>>({
+  const [pageprops, setPageprops] = useState<IPageProps<IInsurance>>({
     page: 1,
     limit: 50,
     data: [],
     total: 0,
     search: "",
   });
-  const [action, setAction] = useState<IActionPage<IPayOffice>>({
+  const [action, setAction] = useState<IActionPage<IInsurance>>({
     upsert: false,
     delete: false,
     process: false,
@@ -35,7 +35,7 @@ export default function DataPayOffice() {
 
     await api
       .request({
-        url: `${import.meta.env.VITE_API_URL}/pay_office?${params.toString()}`,
+        url: `${import.meta.env.VITE_API_URL}/insurance?${params.toString()}`,
         method: "GET",
       })
       .then((res) =>
@@ -55,7 +55,7 @@ export default function DataPayOffice() {
     return () => clearTimeout(timeout);
   }, [pageprops.page, pageprops.limit, pageprops.search]);
 
-  const columns: TableProps<IPayOffice>["columns"] = [
+  const columns: TableProps<IInsurance>["columns"] = [
     {
       title: "ID",
       key: "id",
@@ -70,7 +70,7 @@ export default function DataPayOffice() {
       },
     },
     {
-      title: "Nama Kantor Bayar",
+      title: "Nama Asuransi",
       key: "name",
       dataIndex: "name",
       render(_value, record) {
@@ -124,11 +124,9 @@ export default function DataPayOffice() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Data Kantor Bayar
+            Data Asuransi
           </h1>
-          <p className="text-slate-500 text-sm">
-            Manajemen data kantor bayar gaji.
-          </p>
+          <p className="text-slate-500 text-sm">Manajemen data asuransi.</p>
         </div>
       </div>
 
@@ -224,12 +222,12 @@ const UpsertData = ({
 }: {
   open: boolean;
   setOpen: Function;
-  record?: IPayOffice;
+  record?: IInsurance;
   getData: Function;
   hook: HookAPI;
 }) => {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<IPayOffice>(record || defaultData);
+  const [data, setData] = useState<IInsurance>(record || defaultData);
 
   const handleSubmit = async () => {
     if (!data.name) {
@@ -242,7 +240,7 @@ const UpsertData = ({
     setLoading(true);
     await api
       .request({
-        url: import.meta.env.VITE_API_URL + "/pay_office?id=" + record?.id,
+        url: import.meta.env.VITE_API_URL + "/insurance?id=" + record?.id,
         method: record ? "PUT" : "POST",
         data: data,
         headers: { "Content-Type": "Application/json" },
@@ -291,7 +289,7 @@ const UpsertData = ({
           onchage={(e: string) => setData({ ...data, id: e || "" })}
         />
         <InputUtil
-          label="Kantor Bayar"
+          label="Nama Asuransi"
           type="text"
           value={record?.name}
           required
@@ -308,7 +306,7 @@ const UpsertData = ({
   );
 };
 
-const defaultData: IPayOffice = {
+const defaultData: IInsurance = {
   id: "",
   name: "",
   description: "",
@@ -327,7 +325,7 @@ const DeleteData = ({
 }: {
   open: boolean;
   setOpen: Function;
-  record: IPayOffice;
+  record: IInsurance;
   getData: Function;
   hook: HookAPI;
 }) => {
@@ -337,7 +335,7 @@ const DeleteData = ({
     setLoading(true);
     await api
       .request({
-        url: import.meta.env.VITE_API_URL + "/pay_office?id=" + record?.id,
+        url: import.meta.env.VITE_API_URL + "/insurance?id=" + record?.id,
         method: "DELETE",
         headers: { "Content-Type": "Application/json" },
       })

@@ -117,12 +117,21 @@ export const PUT = async (req: Request, res: Response, next: NextFunction) => {
         updated_at: new Date(),
       },
     });
-    if (UserCost && UserCost.length !== 0) {
-      for (const p of UserCost) {
-        await prisma.userCost.upsert({
-          where: { id: p.id },
-          update: { ...p, userId: saved.id },
-          create: { ...p, userId: saved.id },
+
+    // Handle UserCost: delete old ones and create new ones
+    if (UserCost) {
+      // Delete all existing UserCost for this user
+      await prisma.userCost.deleteMany({
+        where: { userId: saved.id },
+      });
+
+      // Create new UserCost if array is not empty
+      if (UserCost.length > 0) {
+        await prisma.userCost.createMany({
+          data: UserCost.map((p: UserCost) => {
+            const { id, ...rest } = p;
+            return { ...rest, userId: saved.id };
+          }),
         });
       }
     }

@@ -78,9 +78,9 @@ export const GET_HOLIDAY = async (
   res: Response,
   next: NextFunction,
 ) => {
-  let { year, month } = req.query;
+  let { year } = req.query;
   const responseApi = await fetch(
-    `https://api-hari-libur.vercel.app/api?year=${year}&month=${month}`,
+    `https://api-hari-libur.vercel.app/api?year=${year}`,
   );
   const data = await responseApi.json();
   return ResponseServer(res, 200, {
