@@ -44,6 +44,7 @@ import InsentifPage from "./absensi/Insentif";
 import DashboardAbsensi from "./absensi/DashboardAbsensi";
 import PayrollPage from "./absensi/Payroll";
 import { useEffect } from "react";
+import DataPayOffice from "./app/PayOffice";
 
 function AppRouter() {
   const path = window.location.pathname;
@@ -69,6 +70,7 @@ function AppRouter() {
           <Route path="/role" element={<DataRole />} />
           <Route path="/position" element={<DataPosition />} />
           <Route path="/mitra" element={<DataMitra />} />
+          <Route path="/pay_office" element={<DataPayOffice />} />
           <Route path="/log-activities" element={<LogActivities />} />
 
           {/* EARSIP */}

@@ -19,6 +19,20 @@ enum EPermitStatus {
   SELESAI
 }
 
+enum EArsipStatus {
+  PENDING
+  AKTIF
+  LUNAS
+  PASIF
+  BREAK
+}
+
+enum EFlaggingStatus {
+  PENDING
+  FLAGGING
+  NON_PENSIUNAN
+}
+
 enum EGuaranteeStatus {
   PENDING
   DITERIMA
@@ -212,8 +226,10 @@ model Submission {
   value            Int
   tenor            Int
   drawer_code      String
-  approve_status   EPermitStatus    @default(PENDING)
   guarantee_status EGuaranteeStatus @default(PENDING)
+  doc_status       EGuaranteeStatus @default(PENDING)
+  approve_status   EArsipStatus     @default(PENDING)
+  flagging_status  EFlaggingStatus  @default(PENDING)
 
   status            Boolean             @default(true)
   created_at        DateTime            @default(now())
@@ -232,6 +248,8 @@ model Submission {
   PermitFileDetail  PermitFileDetail[]
   CollateralLending CollateralLending[]
   Visit             Visit[]
+  PayOffice         PayOffice?          @relation(fields: [payOfficeId], references: [id])
+  payOfficeId       String?
 }
 
 model CollateralLending {
@@ -292,6 +310,17 @@ model PermitFileDetail {
   submissionId String
   PermitFile   PermitFile @relation(fields: [permitFileId], references: [id])
   permitFileId String
+}
+
+model PayOffice {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  status     Boolean      @default(true)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @default(now())
+  Submission Submission[]
 }
 
 model VisitCategory {

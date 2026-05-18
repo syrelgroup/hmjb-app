@@ -23,12 +23,20 @@ const generate = (record: IUser) => {
 
         html, body {
           height: 100%;
-          font-family: Cambria, Georgia, 'Times New Roman', Times, serif;
-          font-size: 15px;
-          text-align: justify;
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          font-size: 13px;
+          color: #333333;
         }
 
-        /* Pemisah halaman */
+        .slip-container {
+          border: 1px solid #e2e8f0;
+          padding: 24px;
+          border-radius: 8px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
+        /* Pemisah halaman jika dicetak banyak */
         .page-break {
           page-break-before: always;
           break-before: page;
@@ -36,127 +44,148 @@ const generate = (record: IUser) => {
           height: 0;
           border: none;
         }
-          @media print {
-            .page {
-              position: relative;
-              min-height: 95vh;    /* atau height A4 jika untuk print */
-              padding-top: 20px;    /* ruang untuk header */
-              page-break-after: always;
-            }
-    
-            .page .page-header {
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              padding: 10px;
-              text-align: center;
-              background: white;
-              border-bottom: 1px solid #ccc;
-            }
-          }
       </style>
     </head>
-    <body class="bg-white text-gray-800 leading-relaxed">
+    <body class="bg-gray-50 py-8 px-4">
 
-    <div class="page" style="font-size: 12px;">
-      <h1 class="text-center font-bold class="my-8"">REKAP GAJI BULANAN ${record.fullname.toUpperCase()}</h1>
+    <div class="slip-container bg-white shadow-sm">
+      <!-- HEADER SLIP -->
+      <div class="text-center border-b-2 border-gray-800 pb-4 mb-6">
+        <h1 class="text-xl font-bold tracking-wide text-gray-900">REKAP GAJI BULANAN</h1>
+        <p class="text-sm text-gray-600 mt-1 uppercase font-semibold">Periode: ${moment().format("MMMM YYYY")}</p>
+      </div>
 
-      <div class="my-10 flex flex-col gap-2">
-        <div class="flex gap-4">
-          <p class="w-24">Nama Lengkap</p>
-          <p class="w-4">:</p>
-          <p class="w-4">${record.fullname}</p>
+      <!-- INFORMASI KARYAWAN -->
+      <div class="grid grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-md border border-gray-200">
+        <div class="space-y-1">
+          <div class="flex"><span class="w-28 text-gray-500">Nama Lengkap</span><span class="mr-2">:</span><span class="font-medium text-gray-800">${record.fullname}</span></div>
+          <div class="flex"><span class="w-28 text-gray-500">NIP</span><span class="mr-2">:</span><span class="text-gray-800">${record.nip}</span></div>
         </div>
-        <div class="flex gap-4">
-          <p class="w-24">NIK</p>
-          <p class="w-4">:</p>
-          <p class="w-4">${record.nik}</p>
-        </div>
-        <div class="flex gap-4">
-          <p class="w-24">NIP</p>
-          <p class="w-4">:</p>
-          <p class="w-4">${record.nip}</p>
-        </div>
-        <div class="flex gap-4">
-          <p class="w-24">Jabatan</p>
-          <p class="w-4">:</p>
-          <p class="w-4">${record.Position.name}</p>
-        </div>
-        <div class="flex gap-4">
-          <p class="w-24">Status PTKP</p>
-          <p class="w-4">:</p>
-          <p class="w-4">${record.ptkp}</p>
+        <div class="space-y-1">
+          <div class="flex"><span class="w-28 text-gray-500">Jabatan</span><span class="mr-2">:</span><span class="text-gray-800">${record.Position.name}</span></div>
+          <div class="flex"><span class="w-28 text-gray-500">Status PTKP</span><span class="mr-2">:</span><span class="text-gray-800 font-semibold">${record.ptkp}</span></div>
         </div>
       </div>
       
-      <div class="flex gap-4 justify-between my-8">
-        <div class="flex-1 p-2">
-          <div class="flex gap-4">
-            <p class="w-24">Gaji Pokok</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(temp.salary)}</p>
-          </div>
-          ${temp.allowance
-            .map(
-              (a) => `<div class="flex gap-4">
-            <p class="w-24">${a.name}</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</p>
-          </div>`,
-            )
-            .join("")}
-          ${temp.insentif
-            .map(
-              (a) => `<div class="flex gap-4">
-            <p class="w-24">${a.name}</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</p>
-          </div>`,
-            )
-            .join("")}
-          <div class="flex gap-4">
-            <p class="w-24">Lemburan</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(temp.lemburPay)}</p>
-          </div>
+      <!-- RINCIAN PENDAPATAN & POTONGAN -->
+      <div class="grid grid-cols-2 gap-6 items-start mb-6">
+        
+  <!-- KOLOM PENDAPATAN -->
+  <div class="border border-gray-200 rounded-md overflow-hidden">
+    <div class="bg-green-600 text-white px-3 py-2 font-bold text-sm">PENDAPATAN (EARNINGS)</div>
+      <div class="p-3 space-y-2">
+        <div class="flex justify-between"><span>Gaji Pokok</span><span class="font-medium">${IDRFormat(temp.salary)}</span></div>
+        
+        ${temp.allowance
+          .map(
+            (a) => `
+            <div class="flex justify-between">
+              <span class="text-gray-600">${a.name}</span>
+              <span>${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</span>
+            </div>
+          `,
+          )
+          .join("")}
+
+        ${temp.insentif
+          .map(
+            (a) => `
+            <div class="flex justify-between">
+              <span class="text-gray-600">${a.name}</span>
+              <span>${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</span>
+            </div>
+          `,
+          )
+          .join("")}
+
+        <div class="flex justify-between">
+          <span class="text-gray-600">Lemburan</span>
+          <span>${IDRFormat(temp.lemburPay)}</span>
         </div>
-        <div class="flex-1 p-2">
+
+        <!-- TOTAL PENDAPATAN -->
+        <div class="flex justify-between border-t pt-1.5 mt-2 font-bold text-gray-800">
+          <span>Total Pendapatan</span>
+          <span>${IDRFormat(temp.grossSalary)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KOLOM POTONGAN -->
+    <div class="border border-gray-200 rounded-md overflow-hidden">
+      <div class="bg-red-600 text-white px-3 py-2 font-bold text-sm">POTONGAN (DEDUCTIONS)</div>
+        <div class="p-3 space-y-2">
           ${temp.deduction
             .map(
-              (a) => `<div class="flex gap-4">
-            <p class="w-24">${a.name}</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</p>
-          </div>`,
+              (a) => `
+              <div class="flex justify-between">
+                <span class="text-gray-600">${a.name}</span>
+                <span class="text-red-600">-${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</span>
+              </div>
+            `,
             )
             .join("")}
-          <div class="flex gap-4">
-            <p class="w-24">Pot. Alpha</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(temp.alphaPay)}</p>
+
+          <div class="flex justify-between">
+            <span class="text-gray-600">Pot. Alpha</span>
+            <span class="text-red-600">-${IDRFormat(temp.alphaPay)}</span>
           </div>
-          <div class="flex gap-4">
-            <p class="w-24">Terlambat</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(temp.latePay)}</p>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Terlambat</span>
+            <span class="text-red-600">-${IDRFormat(temp.latePay)}</span>
           </div>
-          <div class="flex gap-4">
-            <p class="w-24">Pulang Awal</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(temp.fastLeaveDeduction)}</p>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Pulang Awal</span>
+            <span class="text-red-600">-${IDRFormat(temp.fastLeaveDeduction)}</span>
           </div>
-          <div class="flex gap-4">
-            <p class="w-24">PPh21</p>
-            <p class="w-4">:</p>
-            <p class="flex-1">${IDRFormat(temp.pph)}</p>
+          <div class="flex justify-between border-b pb-1.5 mb-1">
+            <span class="text-gray-600">PPh21 (Pajak Bulan Ini)</span>
+            <span class="text-red-600">-${IDRFormat(temp.pph)}</span>
+          </div>
+
+          <!-- TOTAL POTONGAN -->
+          <div class="flex justify-between font-bold text-red-700 mt-2">
+            <span>Total Potongan</span>
+            <span>-${IDRFormat(temp.deductionPay + temp.alphaPay + temp.latePay + temp.fastLeaveDeduction + temp.pph)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+      <!-- TAKE HOME PAY -->
+      <div class="bg-gray-800 text-white rounded-md p-4 flex justify-between items-center mb-8 shadow-inner">
+        <span class="text-sm font-bold uppercase tracking-wider">Total Gaji Diterima (Take Home Pay)</span>
+        <span class="text-xl font-extrabold text-yellow-400">${IDRFormat(temp.takeHome)}</span>
+      </div>
+
+      <!-- DETAIL PERHITUNGAN PPH 21 (MENGGUNAKAN SKEMA TER BULANAN) -->
+      <div class="border border-gray-300 rounded-md bg-gray-50 p-4">
+        <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3 border-b pb-1">Lampiran: Analisis Potongan PPh 21 (Metode TER)</h3>
+        <div class="grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs text-gray-600">
+          
+          <div class="flex justify-between"><span>Total Penghasilan Bruto Bulan Ini</span><span class="font-medium text-gray-800">${IDRFormat(temp.bruto || 0)}</span></div>
+          <div class="flex justify-between"><span>Status Kebijakan PTKP</span><span class="font-medium text-gray-800">${record.ptkp}</span></div>
+          
+          <div class="flex justify-between"><span>Kategori Tabel TER DJP</span><span class="font-bold text-blue-600">Kategori ${temp.kategoriTER || "A"}</span></div>
+          <div class="flex justify-between"><span>Persentase Tarif Efektif yang Berlaku</span><span class="font-bold text-gray-800">${temp.tarifTER || "0.00%"}</span></div>
+          
+          <div class="flex justify-between border-t pt-1 col-span-2 my-1"></div>
+          
+          <div class="flex justify-between col-span-2 bg-yellow-50 p-2 rounded border border-yellow-200">
+            <span class="font-semibold text-gray-700">Formula Pemotongan PPh 21 Masa</span>
+            <span class="font-bold text-gray-950">${IDRFormat(temp.bruto || 0)} &times; ${temp.tarifTER || "0%"} = <span class="text-red-600">${IDRFormat(temp.pph)}</span></span>
           </div>
         </div>
       </div>
 
-      <div class="my-4 text-center font-bold p-4 border-t border-gray-400 border-dashed">
-        ${IDRFormat(temp.takeHome)}
+      <!-- TANDA TANGAN / VALIDASI PRINT -->
+      <div class="mt-8 flex justify-end text-center text-xs text-gray-500">
+        <div>
+          <p>${moment().format("DD MMMM YYYY")}</p>
+          <p class="mt-16 border-t border-gray-400 pt-1 w-40 mx-auto font-medium text-gray-700">Tim Pengelola Payroll</p>
+        </div>
       </div>
+
     </div>
     </body>
   </html>

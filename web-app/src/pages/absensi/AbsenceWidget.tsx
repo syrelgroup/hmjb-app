@@ -54,6 +54,7 @@ export default function AbsenceWidget({
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         ]);
+        await handleGetLocation();
         setDisable(false);
       } catch (err) {
         console.error("Gagal memuat model face-api", err);
@@ -294,7 +295,7 @@ export default function AbsenceWidget({
         message.error(`Gagal mengambil lokasi: ${err.message}`);
         setLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   };
 
@@ -408,7 +409,7 @@ export default function AbsenceWidget({
             icon={<Calendar size={18} />}
             onClick={handleAbsenceClicked}
             loading={loading}
-            disabled={disable || loading || modelLoad}
+            disabled={disable || loading || modelLoad || !coords}
             className="h-12 text-base font-medium rounded-xl shadow-md bg-linear-to-r from-blue-600 to-indigo-600 border-none hover:opacity-90"
           >
             {modelLoad ? "Memuat Sistem Wajah..." : "Absen Masuk Sekarang"}

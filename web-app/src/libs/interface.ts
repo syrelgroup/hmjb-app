@@ -14,12 +14,10 @@ export interface IPageProps<T> {
   data: T[];
   [key: string]: any;
 }
-export type EStatusSubmission = "DISETUJUI" | "DITOLAK" | "PENDING" | "SELESAI";
-export type EStatusGuarantee =
-  | "DITERIMA"
-  | "PENDING"
-  | "DIPINJAM"
-  | "DIKEMBALIKAN";
+export type EPermitStatus = "DISETUJUI" | "PENDING" | "DITOLAK";
+export type EFlaggingStatus = "PENDING" | "FLAGGING" | "NON_PENSIUNAN";
+export type EArsipStatus = "PENDING" | "AKTIF" | "LUNAS" | "PASIF" | "BREAK";
+export type EDocStatus = "DITERIMA" | "PENDING" | "DIPINJAM" | "DIKEMBALIKAN";
 
 export interface IMenu {
   path: string;
@@ -123,6 +121,7 @@ export interface IAbsence {
     | "SAKIT"
     | "LEMBUR"
     | "ALPHA"
+    | "TERLAMBAT"
     | "PULANG_CEPAT";
   late_deduction: number;
   fast_leave_deduction: number;
@@ -154,14 +153,7 @@ export interface IAbsenceConfig {
 
 export interface IPermitAbsence {
   id: string;
-  type:
-    | "TERLAMBAT"
-    | "CUTI"
-    | "PERDIN"
-    | "SAKIT"
-    | "LEMBUR"
-    | "PULANG_CEPAT"
-    | "ALPHA";
+  type: "TERLAMBAT" | "CUTI" | "PERDIN" | "SAKIT" | "LEMBUR" | "PULANG_CEPAT";
   description: string | null;
   file: string | null;
   start_date: Date | null;
@@ -183,7 +175,7 @@ export interface IInsentif {
   description: string | null;
   nominal: number;
   nominal_type: "RUPIAH" | "PERCENT";
-  approve_status: EStatusSubmission;
+  approve_status: EArsipStatus;
   file: string | null;
   status: boolean;
   created_at: Date;
@@ -237,7 +229,7 @@ export interface IPermitFile {
   action: "DOWNLOAD" | "DELETE";
   description: string | null;
   approv_desc: string | null;
-  permit_status: EStatusSubmission;
+  permit_status: EPermitStatus;
   process_at: Date | null;
 
   requesterId: string;
@@ -335,6 +327,16 @@ export interface IMitra {
   updated_at: Date;
   Submission?: [];
 }
+export interface IPayOffice {
+  id: string;
+  name: string;
+  description: string | null;
+
+  status: boolean;
+  created_at: Date;
+  updated_at: Date;
+  Submission?: [];
+}
 
 export interface ISubmission {
   id: string;
@@ -344,8 +346,10 @@ export interface ISubmission {
   activities: IActivities[];
   value: number;
   tenor: number;
-  guarantee_status: EStatusGuarantee;
-  approve_status: EStatusSubmission;
+  guarantee_status: EDocStatus;
+  doc_status: EDocStatus;
+  approve_status: EArsipStatus;
+  flagging_status: EFlaggingStatus;
   drawer_code: string;
 
   status: boolean;
@@ -357,6 +361,7 @@ export interface ISubmission {
   CreatedBy: IUser;
   Files: IFile[];
   Mitra?: IMitra | null;
+  PayOffice?: IPayOffice | null;
   CollateralLending?: ICollateralLending[];
   Visit?: IVisit[];
   PermitFileDetail?: IPermitFileDetail[];
@@ -364,6 +369,7 @@ export interface ISubmission {
   productId: string;
   userId: string;
   mitraId?: string | null;
+  payOfficeId?: string | null;
   createdById: string;
 }
 
@@ -456,13 +462,13 @@ export const PTKPDetail: IPTKP[] = [
   { name: "TK/0", desc: "Belum Menikah", value: 54000000 },
   { name: "TK/1", desc: "Belum Menikah", value: 58500000 },
   { name: "TK/2", desc: "Belum Menikah", value: 63000000 },
-  { name: "TK/3+", desc: "Belum Menikah", value: 67500000 },
+  { name: "TK/3", desc: "Belum Menikah", value: 67500000 },
   { name: "K/0", desc: "Menikah (0 Anak)", value: 58500000 },
   { name: "K/1", desc: "Menikah (1 Anak)", value: 63000000 },
   { name: "K/2", desc: "Menikah (2 Anak)", value: 67500000 },
-  { name: "K/3+", desc: "Menikah (3 Anak)", value: 72000000 },
-  { name: "KI/0", desc: "Kawin + Istri (0 Anak)", value: 112500000 },
-  { name: "KI/1", desc: "Kawin + Istri (1 Anak)", value: 117000000 },
-  { name: "KI/2", desc: "Kawin + Istri (2 Anak)", value: 121500000 },
-  { name: "KI/3+", desc: "Kawin + Istri (3 Anak)", value: 126000000 },
+  { name: "K/3", desc: "Menikah (3 Anak)", value: 72000000 },
+  // { name: "KI/0", desc: "Kawin + Istri (0 Anak)", value: 112500000 },
+  // { name: "KI/1", desc: "Kawin + Istri (1 Anak)", value: 117000000 },
+  // { name: "KI/2", desc: "Kawin + Istri (2 Anak)", value: 121500000 },
+  // { name: "KI/3+", desc: "Kawin + Istri (3 Anak)", value: 126000000 },
 ];

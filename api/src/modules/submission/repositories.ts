@@ -2,7 +2,13 @@ import { type Response, type Request, type NextFunction } from "express";
 import { ResponseServer } from "../../libs/util.js";
 import prisma from "../../libs/prisma.js";
 import moment from "moment";
-import type { EGuaranteeStatus, EPermitStatus, Prisma } from "@prisma/client";
+import type {
+  EArsipStatus,
+  EFlaggingStatus,
+  EGuaranteeStatus,
+  EPermitStatus,
+  Prisma,
+} from "@prisma/client";
 
 export const GET = async (req: Request, res: Response, next: NextFunction) => {
   let {
@@ -12,10 +18,13 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
     productTypeId,
     productId,
     guarantee_status,
+    doc_status,
     approve_status,
+    flagging_status,
     backdate,
     submissionTypeId,
     mitraId,
+    payOfficeId,
   } = req.query;
   page = Number(page);
   limit = Number(limit);
@@ -51,11 +60,18 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       }),
       ...(productId && { productId: productId as string }),
       ...(mitraId && { mitraId: mitraId as string }),
+      ...(payOfficeId && { payOfficeId: payOfficeId as string }),
       ...(approve_status && {
-        approve_status: approve_status as EPermitStatus,
+        approve_status: approve_status as EArsipStatus,
+      }),
+      ...(flagging_status && {
+        flagging_status: flagging_status as EFlaggingStatus,
       }),
       ...(guarantee_status && {
         guarantee_status: guarantee_status as EGuaranteeStatus,
+      }),
+      ...(doc_status && {
+        doc_status: doc_status as EGuaranteeStatus,
       }),
       ...(backdate && {
         created_at: {
@@ -92,6 +108,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
         PermitFileDetail: true,
         Mitra: true,
         CollateralLending: true,
+        PayOffice: true,
       },
       orderBy: { created_at: "desc" },
     });
@@ -101,14 +118,6 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
     });
     return ResponseServer(res, 200, {
       msg: "GET /submission",
-      page,
-      limit,
-      search,
-      productTypeId,
-      productId,
-      guarantee_status,
-      approve_status,
-      backdate,
       data: data.map((d) => ({
         ...d,
         activities: JSON.parse(d.activities || "[]"),
@@ -137,6 +146,7 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
       Mitra,
       CollateralLending,
       CreatedBy,
+      PayOffice,
       ...savedSub
     } = body;
     const genId = await generateId();
@@ -205,6 +215,7 @@ export const PUT = async (req: Request, res: Response, next: NextFunction) => {
       Mitra,
       CollateralLending,
       CreatedBy,
+      PayOffice,
       ...savedSub
     } = body;
     const { SubmissionType, Visit, Submission, ...savedeb } = Debitur;
@@ -305,6 +316,7 @@ export const PATCH = async (
         Files: true,
         PermitFileDetail: true,
         Mitra: true,
+        PayOffice: true,
       },
     });
     if (!find) return ResponseServer(res, 404, { msg: "Not found data" });

@@ -131,7 +131,7 @@ export const DetailSubmission = ({
       title={
         <Space>
           <FileTextOutlined style={{ color: "#1890ff" }} />
-          <span>DETAIL PERMOHONAN #{record.id}</span>
+          <span>DETAIL REKENING #{record.id}</span>
         </Space>
       }
       width={1000}
@@ -207,22 +207,22 @@ export const DetailSubmission = ({
                   fontSize: "12px",
                   textAlign: "center",
                   background:
-                    record.approve_status === "DISETUJUI" ||
-                    record.approve_status === "SELESAI"
-                      ? "#f6ffed" // Hijau muda
-                      : record.approve_status === "DITOLAK"
-                        ? "#fff1f0" // Merah muda
-                        : "#fff7e6", // Oranye muda (Pending)
+                    record.approve_status === "AKTIF" ||
+                    record.approve_status === "LUNAS"
+                      ? "#f6ffed"
+                      : record.approve_status === "PENDING"
+                        ? "#fff7e6"
+                        : "#fff1f0",
                 },
               }}
               style={{
                 border:
-                  record.approve_status === "DISETUJUI" ||
-                  record.approve_status === "SELESAI"
+                  record.approve_status === "AKTIF" ||
+                  record.approve_status === "LUNAS"
                     ? "1px solid #b7eb8f"
-                    : record.approve_status === "DITOLAK"
-                      ? "1px solid #ffa39e"
-                      : "1px solid #ffd591",
+                    : record.approve_status === "PENDING"
+                      ? "1px solid #ffd591"
+                      : "1px solid #ffa39e",
               }}
             >
               <div
@@ -234,8 +234,8 @@ export const DetailSubmission = ({
               >
                 {(() => {
                   switch (record.approve_status) {
-                    case "DISETUJUI":
-                    case "SELESAI":
+                    case "AKTIF":
+                    case "LUNAS":
                       return (
                         <Tag
                           color="success"
@@ -245,17 +245,7 @@ export const DetailSubmission = ({
                           {record.approve_status}
                         </Tag>
                       );
-                    case "DITOLAK":
-                      return (
-                        <Tag
-                          color="error"
-                          icon={<CloseCircleOutlined />}
-                          style={{ margin: 0 }}
-                        >
-                          DITOLAK
-                        </Tag>
-                      );
-                    default:
+                    case "PENDING":
                       return (
                         <Tag
                           color="warning"
@@ -263,6 +253,16 @@ export const DetailSubmission = ({
                           style={{ margin: 0 }}
                         >
                           PENDING
+                        </Tag>
+                      );
+                    default:
+                      return (
+                        <Tag
+                          color="error"
+                          icon={<CloseCircleOutlined />}
+                          style={{ margin: 0 }}
+                        >
+                          DITOLAK
                         </Tag>
                       );
                   }
@@ -407,6 +407,9 @@ export const DetailSubmission = ({
           </Descriptions.Item>
           <Descriptions.Item label="Mitra">
             {record.Mitra?.name}
+          </Descriptions.Item>
+          <Descriptions.Item label="Kantor Bayar">
+            {record.PayOffice?.name}
           </Descriptions.Item>
         </Descriptions>
 

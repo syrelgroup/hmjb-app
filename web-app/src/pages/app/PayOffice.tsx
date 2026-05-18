@@ -1,30 +1,23 @@
 import { App, Button, Input, Modal, Table, type TableProps } from "antd";
 import { Plus, Edit, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { IActionPage, IMitra, IPageProps } from "../../libs/interface";
+import type { IActionPage, IPageProps, IPayOffice } from "../../libs/interface";
 import type { HookAPI } from "antd/es/modal/useModal";
 import api from "../../libs/api";
 import useContext from "../../libs/context";
-import {
-  EnvironmentOutlined,
-  FileFilled,
-  MailOutlined,
-  PhoneOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
 import { CollapseText } from "../utils/utilComp";
-import { InputFileUploadVisit, InputUtil } from "../utils/utilForm";
+import { InputUtil } from "../utils/utilForm";
 
-export default function DataMitra() {
+export default function DataPayOffice() {
   const [loading, setLoading] = useState(false);
-  const [pageprops, setPageprops] = useState<IPageProps<IMitra>>({
+  const [pageprops, setPageprops] = useState<IPageProps<IPayOffice>>({
     page: 1,
     limit: 50,
     data: [],
     total: 0,
     search: "",
   });
-  const [action, setAction] = useState<IActionPage<IMitra>>({
+  const [action, setAction] = useState<IActionPage<IPayOffice>>({
     upsert: false,
     delete: false,
     process: false,
@@ -42,7 +35,7 @@ export default function DataMitra() {
 
     await api
       .request({
-        url: `${import.meta.env.VITE_API_URL}/mitra?${params.toString()}`,
+        url: `${import.meta.env.VITE_API_URL}/pay_office?${params.toString()}`,
         method: "GET",
       })
       .then((res) =>
@@ -62,7 +55,7 @@ export default function DataMitra() {
     return () => clearTimeout(timeout);
   }, [pageprops.page, pageprops.limit, pageprops.search]);
 
-  const columns: TableProps<IMitra>["columns"] = [
+  const columns: TableProps<IPayOffice>["columns"] = [
     {
       title: "ID",
       key: "id",
@@ -84,57 +77,6 @@ export default function DataMitra() {
         return (
           <>
             <div>{record.name}</div>
-            <div className="text-xs opacity-80">@{record.code}</div>
-          </>
-        );
-      },
-    },
-    {
-      title: "Kontak",
-      key: "contact",
-      dataIndex: "name",
-      render(_value, record) {
-        return (
-          <>
-            <div className="text-xs opacity-80">
-              <PhoneOutlined /> {record.phone}
-            </div>
-            <div className="text-xs opacity-80">
-              <MailOutlined /> {record.email}
-            </div>
-            <div className="text-xs opacity-80">
-              <EnvironmentOutlined /> {record.address}
-            </div>
-            <div className="text-xs opacity-80">
-              <UserOutlined /> {record.pic}
-            </div>
-          </>
-        );
-      },
-    },
-    {
-      title: "Kerjasama",
-      key: "contract",
-      dataIndex: "name",
-      render(_value, record) {
-        return (
-          <>
-            <div>Nomor: {record.no_contract}</div>
-            <div className="text-xs opacity-80">
-              File : {record.drawer_code}{" "}
-              {record.file && (
-                <a
-                  href={record.file}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group relative aspect-square rounded-xl bg-gray-200 overflow-hidden border-2 border-gray-100 hover:border-purple-500 transition-all hover:shadow-lg"
-                >
-                  <Button size="small">
-                    <FileFilled />
-                  </Button>
-                </a>
-              )}
-            </div>
           </>
         );
       },
@@ -182,9 +124,11 @@ export default function DataMitra() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Data Mitra
+            Data Kantor Bayar
           </h1>
-          <p className="text-slate-500 text-sm">Manajemen data mitra.</p>
+          <p className="text-slate-500 text-sm">
+            Manajemen data kantor bayar gaji.
+          </p>
         </div>
       </div>
 
@@ -280,12 +224,12 @@ const UpsertData = ({
 }: {
   open: boolean;
   setOpen: Function;
-  record?: IMitra;
+  record?: IPayOffice;
   getData: Function;
   hook: HookAPI;
 }) => {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<IMitra>(record || defaultData);
+  const [data, setData] = useState<IPayOffice>(record || defaultData);
 
   const handleSubmit = async () => {
     if (!data.name) {
@@ -298,7 +242,7 @@ const UpsertData = ({
     setLoading(true);
     await api
       .request({
-        url: import.meta.env.VITE_API_URL + "/mitra?id=" + record?.id,
+        url: import.meta.env.VITE_API_URL + "/pay_office?id=" + record?.id,
         method: record ? "PUT" : "POST",
         data: data,
         headers: { "Content-Type": "Application/json" },
@@ -338,105 +282,35 @@ const UpsertData = ({
       onOk={handleSubmit}
       okButtonProps={{ loading: loading, disabled: !data.name }}
     >
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 flex flex-col gap-2">
-          <InputUtil
-            label="ID"
-            type="text"
-            value={record?.id}
-            placeholder="Kosongkan untuk otomatis"
-            onchage={(e: string) => setData({ ...data, id: e || "" })}
-          />
-          <InputUtil
-            label="Nama Mitra"
-            type="text"
-            value={record?.name}
-            required
-            onchage={(e: string) => setData({ ...data, name: e || "" })}
-          />
-          <InputUtil
-            label="Kode Mitra"
-            type="text"
-            value={record?.code}
-            required
-            onchage={(e: string) => setData({ ...data, code: e || "" })}
-          />
-          <InputUtil
-            label="PIC"
-            type="text"
-            value={record?.pic}
-            onchage={(e: string) => setData({ ...data, pic: e || "" })}
-          />
-          <InputUtil
-            label="Keterangan"
-            type="area"
-            value={record?.description}
-            onchage={(e: string) => setData({ ...data, description: e || "" })}
-          />
-        </div>
-        <div className="flex-1 flex flex-col gap-2">
-          <InputUtil
-            label="Email"
-            type="text"
-            value={record?.email}
-            onchage={(e: string) => setData({ ...data, email: e || "" })}
-          />
-          <InputUtil
-            label="No Telepon"
-            type="text"
-            value={record?.phone}
-            onchage={(e: string) => setData({ ...data, phone: e || "" })}
-          />
-          <InputUtil
-            label="Alamat"
-            type="area"
-            value={record?.address}
-            onchage={(e: string) => setData({ ...data, address: e || "" })}
-          />
-          <InputUtil
-            label="No Kerjasama"
-            type="text"
-            value={record?.no_contract}
-            onchage={(e: string) => setData({ ...data, no_contract: e || "" })}
-          />
-          <InputUtil
-            label="No Lemari"
-            type="text"
-            value={record?.drawer_code}
-            onchage={(e: string) => setData({ ...data, drawer_code: e || "" })}
-          />
-          <div className="flex justify-between gap-4">
-            <p>Berkas</p>
-            <InputFileUploadVisit
-              filetype="application/pdf, image/*"
-              record={{
-                name: "File",
-                url: data.file || "",
-              }}
-              ondelete={() => setData({ ...data, file: null })}
-              onchange={(e: { name: string; url: string | null }) =>
-                setData({ ...data, file: e.url })
-              }
-              noname
-            />
-          </div>
-        </div>
+      <div className="flex flex-col gap-2">
+        <InputUtil
+          label="ID"
+          type="text"
+          value={record?.id}
+          placeholder="Kosongkan untuk otomatis"
+          onchage={(e: string) => setData({ ...data, id: e || "" })}
+        />
+        <InputUtil
+          label="Kantor Bayar"
+          type="text"
+          value={record?.name}
+          required
+          onchage={(e: string) => setData({ ...data, name: e || "" })}
+        />
+        <InputUtil
+          label="Keterangan"
+          type="area"
+          value={record?.description}
+          onchage={(e: string) => setData({ ...data, description: e || "" })}
+        />
       </div>
     </Modal>
   );
 };
 
-const defaultData: IMitra = {
+const defaultData: IPayOffice = {
   id: "",
   name: "",
-  code: "",
-  email: "",
-  phone: "",
-  address: "",
-  no_contract: "",
-  drawer_code: "",
-  file: "",
-  pic: "",
   description: "",
 
   status: true,
@@ -453,7 +327,7 @@ const DeleteData = ({
 }: {
   open: boolean;
   setOpen: Function;
-  record: IMitra;
+  record: IPayOffice;
   getData: Function;
   hook: HookAPI;
 }) => {
@@ -463,7 +337,7 @@ const DeleteData = ({
     setLoading(true);
     await api
       .request({
-        url: import.meta.env.VITE_API_URL + "/mitra?id=" + record?.id,
+        url: import.meta.env.VITE_API_URL + "/pay_office?id=" + record?.id,
         method: "DELETE",
         headers: { "Content-Type": "Application/json" },
       })

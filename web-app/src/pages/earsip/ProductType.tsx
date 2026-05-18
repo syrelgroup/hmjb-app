@@ -28,6 +28,7 @@ import {
   FileOutlined,
   FilePdfOutlined,
   FileImageOutlined,
+  DoubleRightOutlined,
 } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 const { Text, Title } = Typography;
@@ -274,14 +275,16 @@ const ProductTypeCard = ({
             onClick={() => setOpen(true)}
           />
         </Tooltip>,
+        <Tooltip title="Lihat Arsip">
+          <Link to={"/app/earsip/product_type/detail/" + record.id}>
+            <Button type="text" icon={<DoubleRightOutlined />} />
+          </Link>
+        </Tooltip>,
         <Tooltip title="Edit Tipe">
           <Link to={"/app/earsip/product_type/upsert/" + record.id}>
             <Button
               type="text"
               icon={<Edit2 style={{ color: "#1890ff" }} size={15} />}
-              // onClick={() =>
-              //   setAction((prev: any) => ({ ...prev, record, upsert: true }))
-              // }
               disabled={!hasupdate}
             />
           </Link>

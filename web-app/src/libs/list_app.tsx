@@ -19,7 +19,11 @@ import {
   Calendar,
 } from "lucide-react";
 import type { IMenu } from "./interface";
-import { BranchesOutlined, DollarCircleOutlined } from "@ant-design/icons";
+import {
+  BankOutlined,
+  BranchesOutlined,
+  DollarCircleOutlined,
+} from "@ant-design/icons";
 
 export type AppType = "earsip" | "callreport" | "absensi" | "guestbook" | "all";
 
@@ -74,7 +78,7 @@ export const menus: IMenu[] = [
     name: "Dashboard",
     path: "/app",
     icon: <SquareDashedKanbanIcon size={20} />,
-    need_access: false,
+    need_access: true,
   },
   {
     name: "Profile",
@@ -104,7 +108,7 @@ export const menus: IMenu[] = [
         can_access: ["read", "write", "update", "delete"],
       },
       {
-        name: "Kategori Berkas",
+        name: "Kategori Arsip",
         path: "/app/earsip/product_type",
         icon: <Hash size={15} />,
         need_access: true,
@@ -294,6 +298,13 @@ export const menus: IMenu[] = [
     name: "Mitra",
     path: "/app/mitra",
     icon: <BranchesOutlined />,
+    need_access: true,
+    can_access: ["read", "write", "update", "delete"],
+  },
+  {
+    name: "Kantor Bayar",
+    path: "/app/pay_office",
+    icon: <BankOutlined />,
     need_access: true,
     can_access: ["read", "write", "update", "delete"],
   },

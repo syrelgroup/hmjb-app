@@ -2,7 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import moment from "moment";
 import type { IUser } from "../../libs/interface";
 import api from "../../libs/api";
-import { Calendar, FileSpreadsheet, Eye } from "lucide-react";
+import {
+  Calendar,
+  FileSpreadsheet,
+  Eye,
+  Search,
+  Filter,
+  User,
+} from "lucide-react";
 import {
   Input,
   Pagination,
@@ -36,7 +43,6 @@ const DailyReportAbsence = () => {
   const getUserSummary = (user: IUser) => {
     const totalDaysInMonth = daysHeader.length;
 
-    // Hitung berdasarkan status di array Absence
     const summary = {
       hadir:
         user.Absence?.filter((a) => a.absence_status === "HADIR").length || 0,
@@ -49,14 +55,14 @@ const DailyReportAbsence = () => {
       lembur:
         user.Absence?.filter((a) =>
           (a.description || "").split(",").includes("LEMBUR"),
-        ) || 0,
+        ).length || 0,
       terlambat:
         user.Absence?.filter((a) =>
           (a.description || "").split(",").includes("TERLAMBAT"),
         ).length || 0,
       pulangCepat:
         user.Absence?.filter((a) =>
-          (a.description || "").split(",").includes("PULANG _CETAP"),
+          (a.description || "").split(",").includes("PULANG_CEPAT"),
         ).length || 0,
     };
 
@@ -72,17 +78,15 @@ const DailyReportAbsence = () => {
     const fileExtension = ".xlsx";
 
     const excelData = data.map((user) => {
-      // 1. Definisikan SEMUA kolom identitas di awal objek
       const row: any = {
         NIK: user.nik,
         NIP: user.nip,
         "Nama Pegawai": user.fullname,
       };
 
-      // 2. Kalkulasi summary terlebih dahulu agar data tersedia
-      // const s = getUserSummary(user);
+      const s = getUserSummary(user);
 
-      // 3. Masukkan kolom tanggal (1 - 31)
+      // Masukkan kolom tanggal (1 - 31)
       daysHeader.forEach((day) => {
         const abs = user.Absence?.find(
           (a) => moment(a.check_in).format("YYYY-MM-DD") === day.dateStr,
@@ -95,27 +99,25 @@ const DailyReportAbsence = () => {
           const outTime = abs.check_out
             ? moment(abs.check_out).format("HH:mm")
             : "--";
-
-          // Menampilkan: IN: 08:00 / OUT: 17:00
-          // HR sangat suka ini karena jelas jam kerjanya
-          row[day.day] = `${inTime}\n${outTime}`;
+          row[day.day] = `IN: ${inTime}\nOUT: ${outTime}`;
         } else {
           row[day.day] = day.isRedDay ? "OFF" : "-";
         }
       });
 
-      // // 4. Tambahkan kolom statistik/detail di paling kanan secara berurutan
-      // row["Hadir"] = s.hadir;
-      // row["Alpha"] = s.alpha;
-      // row["Sakit"] = s.sakit;
-      // row["Cuti"] = s.cuti;
-      // row["Lembur"] = s.lembur;
-      // row["Terlambat"] = s.terlambat;
-      // row["Pulang Awal"] = s.pulangCepat;
-      // row["Total Tidak Masuk"] = s.totalTidakMasuk;
-      // row["Total Potongan"] = calculateTotalDeduction(user);
-      // row["Daftar Permohonan"] =
-      //   user.PermitAbsence?.map((p) => p.type).join(", ") || "-";
+      // Append summary data ke baris excel
+      row["Hadir"] = s.hadir;
+      row["Alpha"] = s.alpha;
+      row["Sakit"] = s.sakit;
+      row["Cuti"] = s.cuti;
+      row["Lembur"] = s.lembur;
+      row["Terlambat"] = s.terlambat;
+      row["Pulang Cepat"] = s.pulangCepat;
+      row["Total Tidak Masuk"] = s.totalTidakMasuk;
+      row["Daftar Permohonan"] =
+        user.PermitAbsence?.map((p) => `${p.type} (${p.permit_status})`).join(
+          ", ",
+        ) || "-";
 
       return row;
     });
@@ -134,27 +136,24 @@ const DailyReportAbsence = () => {
         "Terlambat",
         "Pulang Cepat",
         "Total Tidak Masuk",
-        "Total Potongan",
         "Daftar Permohonan",
       ],
     });
 
-    // 5. Opsional: Mengatur lebar kolom agar rapi
     const wscols = [
       { wch: 15 }, // NIK
       { wch: 15 }, // NIP
-      { wch: 30 }, // Nama Pegawai
-      ...daysHeader.map(() => ({ wch: 4 })), // Tanggal 1-31
-      { wch: 10 }, // Hadir s/d Potongan...
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
+      { wch: 25 }, // Nama Pegawai
+      ...daysHeader.map(() => ({ wch: 8 })), // Lebar box tanggal biar muat text IN/OUT
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 12 },
       { wch: 15 },
-      { wch: 15 },
-      { wch: 40 }, // Daftar Permohonan
+      { wch: 40 },
     ];
     ws["!cols"] = wscols;
 
@@ -163,26 +162,6 @@ const DailyReportAbsence = () => {
     const dataBlob = new Blob([excelBuffer], { type: fileType });
     saveAs(dataBlob, `Report_Absensi_${month}${fileExtension}`);
   };
-
-  // --- Helper Kalkulasi ---
-  // const calculateTotalDeduction = (user: IUser) => {
-  //   const late =
-  //     user.Absence?.reduce(
-  //       (acc, curr) => acc + (curr.late_deduction || 0),
-  //       0,
-  //     ) || 0;
-  //   const alpha =
-  //     user.Absence?.reduce(
-  //       (acc, curr) => acc + (curr.alpha_deduction || 0),
-  //       0,
-  //     ) || 0;
-  //   const fastLeave =
-  //     user.Absence?.reduce(
-  //       (acc, curr) => acc + (curr.fast_leave_deduction || 0),
-  //       0,
-  //     ) || 0;
-  //   return late + alpha + fastLeave;
-  // };
 
   const fetchData = async () => {
     setLoading(true);
@@ -202,7 +181,6 @@ const DailyReportAbsence = () => {
   const fetchHolidays = async () => {
     try {
       setLoading(true);
-
       const res = await api.get("/holidays", {
         params: {
           month: month.split("-")[1] || moment().month(),
@@ -221,10 +199,8 @@ const DailyReportAbsence = () => {
   };
 
   useEffect(() => {
-    (async () => {
-      fetchHolidays();
-      fetchData();
-    })();
+    fetchHolidays();
+    fetchData();
   }, [month, search, page, limit]);
 
   const daysHeader = useMemo(() => {
@@ -244,160 +220,241 @@ const DailyReportAbsence = () => {
 
   return (
     <Spin spinning={loading}>
-      <div className="p-4 bg-gray-50 min-h-screen">
-        <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-blue-600" /> Laporan Absensi
-          </h1>
+      <div className="p-3 sm:p-6 bg-slate-50 min-h-screen">
+        {/* HEADER CONTROL BAR */}
+        <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-50 rounded-lg text-blue-600">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">
+                Laporan Absensi
+              </h1>
+              <p className="text-xs text-slate-400 hidden sm:block">
+                Monitoring kehadiran dan rekap log data absen karyawan
+              </p>
+            </div>
+          </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 sm:flex flex-wrap items-center gap-2">
             <Button
               icon={<FileSpreadsheet size={16} />}
-              className="bg-green-600 text-white hover:bg-green-700 flex items-center"
+              className="bg-emerald-600 text-white hover:bg-emerald-700 font-medium flex items-center justify-center h-9 order-3 sm:order-1"
               onClick={exportToExcel}
             >
               Export Excel
             </Button>
 
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="px-3 py-1 border rounded bg-white text-sm outline-none"
-            />
+            <div className="relative flex items-center order-1 sm:order-2">
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="w-full sm:w-auto px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-700 outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
 
-            <Input.Search
-              placeholder="Cari..."
+            <Input
+              placeholder="Cari nama atau NIK..."
+              prefix={<Search size={14} className="text-slate-400" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: 200 }}
-              size="middle"
+              className="w-full sm:w-52 h-9 rounded-lg order-2 sm:order-3"
+              allowClear
             />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow border overflow-hidden">
+        {/* 1. LAYOUT TABLE UNTUK VIEW DESKTOP */}
+        <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-[11px] border-collapse">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-3 py-3 sticky left-0 bg-gray-100 z-30 border-b text-left min-w-37.5 shadow-sm">
+                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                  <th className="px-4 py-3.5 sticky left-0 bg-slate-50 border-r border-b z-30 text-left font-semibold min-w-40 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                     Pegawai
                   </th>
                   {daysHeader.map((item) => (
                     <th
                       key={item.day}
                       title={item.tooltip}
-                      className={`px-1 py-3 border-b text-center min-w-8.75 ${
+                      className={`px-1 py-3.5 border-b border-r border-slate-100 text-center min-w-9.5 font-medium ${
                         item.isRedDay
-                          ? "text-red-600 bg-red-50 font-bold"
-                          : "text-gray-500"
+                          ? "text-red-600 bg-red-50/50 font-bold"
+                          : "text-slate-500"
                       }`}
                     >
                       {item.day}
                     </th>
                   ))}
-                  {/* Kolom Detail Baru di Ujung Kanan */}
-                  <th className="px-4 py-3 sticky right-0 bg-gray-100 z-30 border-b border-l text-center min-w-30 font-bold text-blue-700">
-                    Summary & Detail
+                  <th className="px-4 py-3.5 sticky right-0 bg-slate-50 z-30 border-b border-l font-bold text-blue-700 text-center min-w-30 shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                    Aksi & Summary
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {data.map((user) => {
-                  return (
-                    <tr
-                      key={user.id}
-                      className="hover:bg-blue-50/20 transition-colors group"
-                    >
-                      <td className="px-3 py-2 sticky left-0 bg-white group-hover:bg-blue-50 border-r z-20 shadow-sm">
-                        <div className="font-bold text-gray-700">
-                          {user.fullname}
-                        </div>
-                        <div className="text-[9px] text-gray-400">
-                          {user.nik}
-                        </div>
-                      </td>
+              <tbody className="divide-y divide-slate-100">
+                {data.map((user) => (
+                  <tr
+                    key={user.id}
+                    className="hover:bg-slate-50/70 transition-colors group"
+                  >
+                    <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-200 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.01)]">
+                      <div className="font-semibold text-slate-700 text-xs">
+                        {user.fullname}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        {user.nik}
+                      </div>
+                    </td>
 
-                      {daysHeader.map((item) => {
-                        const abs = user.Absence?.find(
-                          (a) =>
-                            moment(a.check_in).format("YYYY-MM-DD") ===
-                            item.dateStr,
-                        );
-                        return (
-                          <td
-                            key={item.day}
-                            className={`px-0 py-2 text-center border-r border-b border-gray-100 ${item.isRedDay ? "bg-red-50/20" : ""}`}
-                          >
-                            {abs ? (
-                              <div>
-                                <StatusBadge status={abs.absence_status} />
-                                <div
-                                  className="text-xs opacity-80"
-                                  style={{ fontSize: 10 }}
-                                >
-                                  {abs.check_in
-                                    ? moment(abs.check_in).format("HH:mm")
-                                    : "-"}
-                                </div>
-                                <div
-                                  className="text-xs opacity-80"
-                                  style={{ fontSize: 10 }}
-                                >
-                                  {abs.check_out
-                                    ? moment(abs.check_out).format("HH:mm")
-                                    : "-"}
-                                </div>
+                    {daysHeader.map((item) => {
+                      const abs = user.Absence?.find(
+                        (a) =>
+                          moment(a.check_in).format("YYYY-MM-DD") ===
+                          item.dateStr,
+                      );
+                      return (
+                        <td
+                          key={item.day}
+                          className={`px-0 py-2 text-center border-r border-slate-100 align-middle ${
+                            item.isRedDay ? "bg-red-50/10" : ""
+                          }`}
+                        >
+                          {abs ? (
+                            <div className="flex flex-col items-center justify-center gap-0.5">
+                              <StatusBadge status={abs.absence_status} />
+                              <div className="text-[9px] font-medium text-slate-600 scale-90 tracking-tighter">
+                                {abs.check_in
+                                  ? moment(abs.check_in).format("HH:mm")
+                                  : "-"}
                               </div>
-                            ) : (
-                              <span className="text-gray-200">
-                                {item.isRedDay ? "" : "•"}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-
-                      {/* Content Kolom Detail di Ujung Kanan */}
-                      <td className="px-2 py-2 sticky right-0 bg-white group-hover:bg-blue-50 border-l z-20 shadow-sm border-b">
-                        <div className="flex flex-col gap-1 items-center">
-                          <div className="flex gap-2 text-[10px]">
-                            {/* <span
-                              className="text-red-500 font-bold"
-                              title="Total Potongan"
-                            >
-                              -{totalDeduction.toLocaleString()}
-                            </span> */}
-                            <span
-                              className="text-blue-600 font-bold"
-                              title="Total Permohonan"
-                            >
-                              ({user.PermitAbsence?.length || 0} P)
+                              <div className="text-[9px] font-medium text-slate-400 scale-90 tracking-tighter">
+                                {abs.check_out
+                                  ? moment(abs.check_out).format("HH:mm")
+                                  : "-"}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 font-bold">
+                              {item.isRedDay ? "" : "•"}
                             </span>
-                          </div>
-                          <Button
-                            size="small"
-                            type="primary"
-                            ghost
-                            icon={<Eye size={12} />}
-                            className="text-[10px] h-6 px-2 flex items-center"
-                            onClick={() => showDetail(user)} // Panggil fungsi showDetail
-                          >
-                            Detail
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          )}
+                        </td>
+                      );
+                    })}
+
+                    <td className="px-3 py-2 sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-200 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.01)] text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                          {user.PermitAbsence?.length || 0} Permohonan
+                        </span>
+                        <Button
+                          size="small"
+                          type="primary"
+                          ghost
+                          icon={<Eye size={12} />}
+                          className="text-[10px] h-6 px-2 flex items-center font-medium rounded-md"
+                          onClick={() => showDetail(user)}
+                        >
+                          Detail
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
 
-        <div className="mt-4 flex justify-between items-center bg-white p-2 rounded border">
-          <div className="text-xs text-gray-500 italic">* P = Permohonan</div>
+        {/* 2. LAYOUT CARD UNTUK VIEW MOBILE (HP) */}
+        <div className="block md:hidden space-y-3">
+          {data.length === 0 ? (
+            <div className="text-center p-8 bg-white rounded-lg border text-slate-400 text-sm">
+              Data tidak ditemukan
+            </div>
+          ) : (
+            data.map((user) => {
+              const s = getUserSummary(user);
+              return (
+                <div
+                  key={user.id}
+                  className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3"
+                >
+                  <div className="flex justify-between items-start border-b pb-2 border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+                        <User size={16} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">
+                          {user.fullname}
+                        </h3>
+                        <p className="text-xs text-slate-400 font-mono">
+                          {user.nik}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="small"
+                      type="default"
+                      icon={<Eye size={14} className="text-slate-500" />}
+                      className="flex items-center text-xs h-7 border-slate-200"
+                      onClick={() => showDetail(user)}
+                    >
+                      Detail
+                    </Button>
+                  </div>
+
+                  {/* Ringkasan Parameter Cepat di HP */}
+                  <div className="grid grid-cols-4 gap-2 text-center bg-slate-50 p-2 rounded-lg text-[11px]">
+                    <div>
+                      <div className="text-slate-400">Hadir</div>
+                      <div className="font-bold text-emerald-600">
+                        {s.hadir}d
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400">Alpha</div>
+                      <div className="font-bold text-red-500">{s.alpha}d</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400">Sakit/Cuti</div>
+                      <div className="font-bold text-amber-500">
+                        {s.sakit + s.cuti}d
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400">Late/Early</div>
+                      <div className="font-bold text-indigo-600">
+                        {s.terlambat + s.pulangCepat}x
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-medium">
+                      Permohonan Izin Aktif:
+                    </span>
+                    <Tag
+                      color={user.PermitAbsence?.length ? "blue" : "default"}
+                      className="m-0 text-[10px]"
+                    >
+                      {user.PermitAbsence?.length || 0} Izin
+                    </Tag>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* PAGINATION CONTROL BAR */}
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+          <div className="text-xs text-slate-400 italic order-2 sm:order-1">
+            * P / Permohonan = Total data form izin masuk
+          </div>
           <Pagination
             current={page}
             pageSize={limit}
@@ -408,43 +465,67 @@ const DailyReportAbsence = () => {
             size="small"
             total={total}
             showSizeChanger
+            className="order-1 sm:order-2"
           />
         </div>
       </div>
+
+      {/* DETAILED MODAL DATA POPUP */}
       <Modal
         title={`Detail Absensi - ${selectedUser?.fullname}`}
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         footer={[
-          <Button key="close" onClick={() => setIsModalOpen(false)}>
+          <Button
+            key="close"
+            type="primary"
+            onClick={() => setIsModalOpen(false)}
+            className="rounded-md"
+          >
             Tutup
           </Button>,
         ]}
-        style={{ top: 20 }}
-        width={600}
+        style={{ top: 30 }}
+        width={550}
+        className="responsive-modal"
       >
         {selectedUser &&
           (() => {
             const s = getUserSummary(selectedUser);
             return (
-              <div className="py-4">
-                <Descriptions bordered column={2} size="small">
+              <div className="py-2 space-y-4">
+                <Descriptions
+                  bordered
+                  column={2}
+                  size="small"
+                  layout="horizontal"
+                >
                   <Descriptions.Item label="Total Hari Kerja" span={2}>
-                    {s.totalDaysInMonth} Hari
+                    <span className="font-semibold">
+                      {s.totalDaysInMonth} Hari Kalender
+                    </span>
                   </Descriptions.Item>
 
                   <Descriptions.Item label="Hadir">
-                    <Tag color="green">{s.hadir} Hari</Tag>
+                    <Tag color="green" className="font-medium px-2">
+                      {s.hadir} Hari
+                    </Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="Alpha">
-                    <Tag color="red">{s.alpha} Hari</Tag>
+                    <Tag color="red" className="font-medium px-2">
+                      {s.alpha} Hari
+                    </Tag>
                   </Descriptions.Item>
 
                   <Descriptions.Item label="Sakit">
-                    <Tag color="warning">{s.sakit} Hari</Tag>
+                    <Tag color="warning" className="font-medium px-2">
+                      {s.sakit} Hari
+                    </Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="Cuti">
-                    <Tag color="blue">{s.cuti} Hari</Tag>
+                    <Tag color="blue" className="font-medium px-2">
+                      {s.cuti} Hari
+                    </Tag>
                   </Descriptions.Item>
 
                   <Descriptions.Item label="Terlambat">
@@ -458,26 +539,25 @@ const DailyReportAbsence = () => {
                     </span>
                   </Descriptions.Item>
 
-                  <Descriptions.Item label="Lembur">
-                    <Tag color="purple">{s.lembur.length} Kali</Tag>
+                  <Descriptions.Item label="Lembur" span={2}>
+                    <Tag color="purple" className="font-medium px-2">
+                      {s.lembur} Kali
+                    </Tag>
                   </Descriptions.Item>
-                  {/* <Descriptions.Item label="Potongan Gaji">
-                    <span className="text-red-600 font-bold">
-                      Rp{" "}
-                      {calculateTotalDeduction(selectedUser).toLocaleString()}
-                    </span>
-                  </Descriptions.Item> */}
                 </Descriptions>
 
-                <Divider titlePlacement="left" className="text-xs">
-                  Ringkasan Ketidakhadiran
+                <Divider className="my-2 text-xs text-slate-400">
+                  Akumulasi Absen Kosong
                 </Divider>
 
-                <div className="bg-red-50 p-4 rounded-lg flex justify-between items-center">
-                  <span className="text-gray-600">
-                    Total Hari Tidak Masuk (Alpha+Sakit+Cuti):
+                <div className="bg-rose-50 border border-rose-100 p-3 sm:p-4 rounded-xl flex justify-between items-center">
+                  <span className="text-xs sm:text-sm font-medium text-slate-600">
+                    Total Tidak Masuk Kerja{" "}
+                    <span className="text-[10px] text-slate-400 block">
+                      (Alpha + Sakit + Cuti)
+                    </span>
                   </span>
-                  <span className="text-2xl font-black text-red-600">
+                  <span className="text-xl sm:text-2xl font-black text-rose-600">
                     {s.totalTidakMasuk} Hari
                   </span>
                 </div>
@@ -485,22 +565,34 @@ const DailyReportAbsence = () => {
                 {selectedUser.PermitAbsence &&
                   selectedUser.PermitAbsence.length > 0 && (
                     <>
-                      <Divider titlePlacement="left" className="text-xs">
-                        Permohonan Izin Aktif
+                      <Divider className="my-2 text-xs text-slate-400">
+                        Daftar Dokumen Permohonan
                       </Divider>
-                      <ul className="text-xs space-y-1">
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                         {selectedUser.PermitAbsence.map((p, i) => (
-                          <li
+                          <div
                             key={i}
-                            className="flex justify-between border-b pb-1"
+                            className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs"
                           >
-                            <span>
-                              {p.type} - {moment(p.created_at).format("DD/MM")}
+                            <span className="font-medium text-slate-700">
+                              {p.type}{" "}
+                              <span className="text-[10px] text-slate-400 font-normal ml-1">
+                                ({moment(p.created_at).format("DD MMM YYYY")})
+                              </span>
                             </span>
-                            <Tag color="processing">{p.permit_status}</Tag>
-                          </li>
+                            <Tag
+                              color={
+                                p.permit_status === "DISETUJUI"
+                                  ? "success"
+                                  : "processing"
+                              }
+                              className="m-0 text-[10px]"
+                            >
+                              {p.permit_status}
+                            </Tag>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </>
                   )}
               </div>
@@ -513,20 +605,19 @@ const DailyReportAbsence = () => {
 
 const StatusBadge = ({ status }: { status: string }) => {
   const config: Record<string, string> = {
-    HADIR: "bg-green-500 text-white",
-    SAKIT: "bg-yellow-400 text-white",
+    HADIR: "bg-emerald-500 text-white",
+    SAKIT: "bg-amber-400 text-white",
     CUTI: "bg-blue-500 text-white",
-    PERDIN: "bg-purple-500 text-white",
-    ALPHA: "bg-red-500 text-white",
-    LEMBUR: "bg-orange-500 text-white",
-    PULANG_CEPAT: "bg-orange-600 text-white",
+    PERDIN: "bg-indigo-500 text-white",
+    ALPHA: "bg-rose-500 text-white",
+    LEMBUR: "bg-violet-500 text-white",
   };
   return (
     <div className="flex justify-center">
       <span
-        className={`w-5 h-5 flex items-center justify-center rounded-sm text-[9px] font-black ${config[status] || "bg-gray-200"}`}
+        className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-black shadow-sm ${config[status] || "bg-slate-200 text-slate-400"}`}
       >
-        {status.charAt(0)}
+        {status ? status.substring(0, 2) : "--"}
       </span>
     </div>
   );

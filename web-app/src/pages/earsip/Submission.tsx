@@ -17,6 +17,7 @@ import type {
   ICollateralLending,
   IMitra,
   IPageProps,
+  IPayOffice,
   IProduct,
   IProductType,
   ISubmission,
@@ -51,9 +52,12 @@ export default function DataSubmission() {
     productTypeId: "",
     backdate: "",
     approve_status: "",
+    flagging_status: "",
     guarantee_status: "",
+    doc_status: "",
     submissionTypeId: "",
     mitraId: "",
+    payOfficeId: "",
   });
   const [action, setAction] = useState<IActionPage<ISubmission>>({
     upsert: false,
@@ -67,29 +71,29 @@ export default function DataSubmission() {
   const [products, setProducts] = useState<IProduct[]>([]);
   const [productTypes, setProductTypes] = useState<IProductType[]>([]);
   const [mitras, setMitras] = useState<IMitra[]>([]);
+  const [pays, setPays] = useState<IPayOffice[]>([]);
 
   const getData = async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    params.append("page", pageprops.page.toString());
-    params.append("limit", pageprops.limit.toString());
-    if (pageprops.search) params.append("search", pageprops.search);
-    if (pageprops.productTypeId)
-      params.append("productTypeId", pageprops.productTypeId);
-    if (pageprops.productId) params.append("productId", pageprops.productId);
-    if (pageprops.approve_status)
-      params.append("approve_status", pageprops.approve_status);
-    if (pageprops.guarantee_status)
-      params.append("guarantee_status", pageprops.guarantee_status);
-    if (pageprops.backdate) params.append("backdate", pageprops.backdate);
-    if (pageprops.submissionTypeId)
-      params.append("submissionTypeId", pageprops.submissionTypeId);
-    if (pageprops.mitraId) params.append("mitraId", pageprops.mitraId);
-
     await api
       .request({
-        url: `${import.meta.env.VITE_API_URL}/submission?${params.toString()}`,
+        url: `${import.meta.env.VITE_API_URL}/submission`,
         method: "GET",
+        params: {
+          limit: pageprops.limit,
+          page: pageprops.page,
+          search: pageprops.search,
+          productTypeId: pageprops.productTypeId,
+          productId: pageprops.productId,
+          approve_status: pageprops.approve_status,
+          doc_status: pageprops.doc_status,
+          guarantee_status: pageprops.guarantee_status,
+          flagging_status: pageprops.flagging_status,
+          submissionTypeId: pageprops.submissionTypeId,
+          mitraId: pageprops.mitraId,
+          payOfficeId: pageprops.payOfficeId,
+          backdate: pageprops.backdate ? pageprops.backdate.toString() : "",
+        },
       })
       .then((res) =>
         setPageprops((prev) => ({
@@ -142,6 +146,12 @@ export default function DataSubmission() {
           url: `${import.meta.env.VITE_API_URL}/mitra`,
         })
         .then((res) => setMitras(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: `${import.meta.env.VITE_API_URL}/pay_office`,
+        })
+        .then((res) => setPays(res.data.data));
     })();
   }, []);
 
@@ -159,8 +169,11 @@ export default function DataSubmission() {
     pageprops.productTypeId,
     pageprops.submissionTypeId,
     pageprops.approve_status,
+    pageprops.flagging_status,
     pageprops.guarantee_status,
+    pageprops.doc_status,
     pageprops.mitraId,
+    pageprops.payOfficeId,
   ]);
 
   const columns: TableProps<ISubmission>["columns"] = [
@@ -179,7 +192,7 @@ export default function DataSubmission() {
       },
     },
     {
-      title: "Pemohon",
+      title: "Nasabah",
       key: "pemohon",
       dataIndex: ["Debitur", "fullname"],
       fixed: window.innerWidth > 600 ? "left" : undefined,
@@ -273,6 +286,7 @@ export default function DataSubmission() {
         return (
           <div>
             <div>{record.Mitra?.name}</div>
+            <div className="opacity-80 text-xs">{record.PayOffice?.name}</div>
           </div>
         );
       },
@@ -315,7 +329,7 @@ export default function DataSubmission() {
       },
     },
     {
-      title: "Status Permohonan",
+      title: "Status Arsip",
       key: "permohonan",
       dataIndex: "permohonan",
       render(_value, record, _index) {
@@ -324,13 +338,11 @@ export default function DataSubmission() {
             <Tag
               style={{ width: 100, textAlign: "center" }}
               color={
-                record.approve_status === "DITOLAK"
-                  ? "red"
+                ["BREAK", "PASIF"].includes(record.approve_status)
+                  ? "cyan"
                   : record.approve_status === "PENDING"
                     ? "orange"
-                    : record.approve_status === "SELESAI"
-                      ? "cyan"
-                      : "green"
+                    : "green"
               }
               variant="solid"
             >
@@ -366,7 +378,56 @@ export default function DataSubmission() {
         );
       },
     },
-
+    {
+      title: "Status Dokumen",
+      key: "doc",
+      dataIndex: "doc",
+      render(_value, record, _index) {
+        return (
+          <div className="flex justify-center">
+            <Tag
+              style={{ width: 100, textAlign: "center" }}
+              color={
+                record.doc_status === "DITERIMA"
+                  ? "green"
+                  : record.doc_status === "PENDING"
+                    ? "orange"
+                    : record.doc_status === "DIPINJAM"
+                      ? "blue"
+                      : "cyan"
+              }
+              variant="solid"
+            >
+              {record.doc_status}
+            </Tag>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Status Flagging",
+      key: "flagging",
+      dataIndex: "flagging",
+      render(_value, record, _index) {
+        return (
+          <div className="flex justify-center">
+            <Tag
+              style={{ width: 100, textAlign: "center" }}
+              color={
+                record.flagging_status === "PENDING"
+                  ? "orange"
+                  : record.flagging_status === "FLAGGING"
+                    ? "green"
+                    : "blue"
+              }
+              variant="solid"
+            >
+              {record.flagging_status}
+            </Tag>
+          </div>
+        );
+      },
+    },
     {
       title: "Tanggal",
       key: "created_at",
@@ -452,7 +513,7 @@ export default function DataSubmission() {
         />
       </div>
       <div className="flex flex-col w-full">
-        <p className="mb-1">Tipe Produk</p>
+        <p className="mb-1">Tipe Arsip</p>
         <Select
           placeholder="Pilih tipe produk.."
           className="w-full"
@@ -498,6 +559,20 @@ export default function DataSubmission() {
         />
       </div>
       <div className="flex flex-col w-full">
+        <p className="mb-1">Kantor Bayar</p>
+        <Select
+          placeholder="Pilih Kantor Bayar.."
+          className="w-full"
+          options={pays.map((t) => ({ label: t.name, value: t.id }))}
+          onChange={(val) => setPageprops({ ...pageprops, payOfficeId: val })}
+          allowClear
+          value={pageprops.payOfficeId}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+      <div className="flex flex-col w-full">
         <p className="mb-1">Status Jaminan</p>
         <Select
           placeholder="Pilih status jaminan.."
@@ -519,21 +594,61 @@ export default function DataSubmission() {
         />
       </div>
       <div className="flex flex-col w-full">
-        <p className="mb-1">Status Permohonan</p>
+        <p className="mb-1">Status Dokumen</p>
         <Select
-          placeholder="Pilih status permohonan.."
+          placeholder="Pilih status doc.."
           className="w-full"
           options={[
             { label: "PENDING", value: "PENDING" },
-            { label: "DISETUJUI", value: "DISETUJUI" },
-            { label: "DITOLAK", value: "DITOLAK" },
-            { label: "SELESAI", value: "SELESAI" },
+            { label: "DITERIMA", value: "DITERIMA" },
+            { label: "DIPINJAM", value: "DIPINJAM" },
+            { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
+          ]}
+          onChange={(val) => setPageprops({ ...pageprops, doc_status: val })}
+          allowClear
+          value={pageprops.doc_status}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+      <div className="flex flex-col w-full">
+        <p className="mb-1">Status Nasabah</p>
+        <Select
+          placeholder="Pilih status nasabah.."
+          className="w-full"
+          options={[
+            { label: "PENDING", value: "PENDING" },
+            { label: "AKTIF", value: "AKTIF" },
+            { label: "LUNAS", value: "LUNAS" },
+            { label: "BREAK", value: "BREAK" },
+            { label: "PASIF", value: "PASIF" },
           ]}
           onChange={(val) =>
             setPageprops({ ...pageprops, approve_status: val })
           }
           allowClear
           value={pageprops.approve_status}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+      <div className="flex flex-col w-full">
+        <p className="mb-1">Status Flagging</p>
+        <Select
+          placeholder="Pilih status flagging.."
+          className="w-full"
+          options={[
+            { label: "PENDING", value: "PENDING" },
+            { label: "FLAGGING", value: "FLAGGING" },
+            { label: "NON_PENSIUNAN", value: "NON_PENSIUNAN" },
+          ]}
+          onChange={(val) =>
+            setPageprops({ ...pageprops, flagging_status: val })
+          }
+          allowClear
+          value={pageprops.flagging_status}
           optionFilterProp={"label"}
           showSearch
           size="small"
@@ -568,10 +683,13 @@ export default function DataSubmission() {
               productTypeId: "",
               productId: "",
               approve_status: "",
+              flagging_status: "",
               guarantee_status: "",
+              doc_status: "",
               backdate: "",
               submissionTypeId: "",
-              mitraid: "",
+              mitraId: "",
+              payOfficeId: "",
             })
           }
         >
@@ -587,11 +705,9 @@ export default function DataSubmission() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Data Permohonan
+            Daftar Rekening
           </h1>
-          <p className="text-slate-500 text-sm">
-            Manajemen permohonan debitur.
-          </p>
+          <p className="text-slate-500 text-sm">Manajemen rekening nasabah.</p>
         </div>
       </div>
 

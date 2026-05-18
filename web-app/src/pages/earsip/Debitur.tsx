@@ -99,7 +99,7 @@ export default function DebiturEArsip() {
       },
     },
     {
-      title: "Nama Debitur",
+      title: "Nasabah",
       key: "fullname",
       dataIndex: "fullname",
       fixed: window.innerWidth > 600 ? "left" : undefined,
@@ -193,7 +193,7 @@ export default function DebiturEArsip() {
   // Nested visits columns
   const visitColumns: TableProps<ISubmission>["columns"] = [
     {
-      title: "ID Permohonan",
+      title: "ID Arsip",
       key: "id",
       dataIndex: "id",
       render(value) {
@@ -340,9 +340,11 @@ export default function DebiturEArsip() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Data Debitur EArsip
+            Data Arsip Nasabah
           </h1>
-          <p className="text-slate-500 text-sm">Monitoring data debitur</p>
+          <p className="text-slate-500 text-sm">
+            Monitoring data arsip nasabah
+          </p>
         </div>
       </div>
 
@@ -409,14 +411,14 @@ export default function DebiturEArsip() {
               if (visits.length === 0) {
                 return (
                   <div className="p-4 text-center text-gray-500">
-                    Tidak ada data permohonan
+                    Belum ada arsip
                   </div>
                 );
               }
               return (
                 <div className=" bg-gray-50 rounded-lg ml-14">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm">
-                    📋 Daftar Permohonan ({visits.length} permohonan)
+                    📋 Daftar Arsip ({visits.length})
                   </h3>
                   <Table
                     size="small"

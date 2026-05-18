@@ -1,12 +1,14 @@
 import { App, Button, Card, Col, Divider, Row, Spin, Tooltip } from "antd";
 import type {
-  EStatusGuarantee,
-  EStatusSubmission,
+  EArsipStatus,
+  EDocStatus,
+  EFlaggingStatus,
   IActivities,
   IComments,
   IDebitur,
   IFile,
   IMitra,
+  IPayOffice,
   IProduct,
   IProductType,
   IProductTypeFile,
@@ -32,6 +34,7 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
   const [loading, setLoading] = useState(false);
   const [subType, setSubType] = useState<ISubType[]>([]);
   const [mitras, setMitras] = useState<IMitra[]>([]);
+  const [pays, setPays] = useState<IPayOffice[]>([]);
   const [products, setProducts] = useState<IProduct[]>([]);
   const [users, setUsers] = useState<IUser[]>([]);
   const [search, setSearch] = useState("");
@@ -78,6 +81,12 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
           url: `${import.meta.env.VITE_API_URL}/mitra`,
         })
         .then((res) => setMitras(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: `${import.meta.env.VITE_API_URL}/pay_office`,
+        })
+        .then((res) => setPays(res.data.data));
     })();
   }, []);
 
@@ -149,7 +158,7 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
     <Spin spinning={loading}>
       <div className="bg-white p-4 rounded">
         <p className="font-bold text-lg">
-          {record ? "UPDATE" : "TAMBAH"} DATA PERMOHONAN
+          {record ? "UPDATE" : "TAMBAH"} DATA ARSIP
         </p>
         <div className="ml-8 text-xs opacity-80 my-4">
           <ul className="list-disc">
@@ -445,15 +454,24 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
                       setActivities,
                     );
                 }}
-                type="text"
+                type="option"
+                options={[
+                  { label: "Renovasi Rumah", value: "Renovasi Rumah" },
+                  { label: "Konsumtif", value: "Konsumtif" },
+                  { label: "Modal Usaha", value: "Modal Usaha" },
+                  { label: "Modal Kerja", value: "Modal Kerja" },
+                  { label: "Investasi", value: "Investasi" },
+                  { label: "Pendidikan", value: "Pendidikan" },
+                  { label: "Kebutuhan Medis", value: "Kebutuhan Medis" },
+                ]}
               />
             </Col>
             <Col xs={12} md={8}>
               <InputUtil
-                label="Status Permohonan"
+                label="Status Nasabah"
                 required
                 value={data.approve_status}
-                onchage={(e: EStatusSubmission) => {
+                onchage={(e: EArsipStatus) => {
                   setData({
                     ...data,
                     approve_status: e,
@@ -467,9 +485,56 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
                 }}
                 options={[
                   { label: "PENDING", value: "PENDING" },
-                  { label: "DISETUJUI", value: "DISETUJUI" },
-                  // { label: "DITOLAK", value: "DITOLAK" },
-                  { label: "SELESAI", value: "SELESAI" },
+                  ...(data.Product.ProductType?.name
+                    .toLocaleLowerCase()
+                    .includes("kredit")
+                    ? [
+                        { label: "AKTIF", value: "AKTIF" },
+                        { label: "LUNAS", value: "LUNAS" },
+                      ]
+                    : []),
+                  ...(data.Product.ProductType?.name
+                    .toLocaleLowerCase()
+                    .includes("deposito")
+                    ? [
+                        { label: "AKTIF", value: "AKTIF" },
+                        { label: "BREAK", value: "BREAK" },
+                      ]
+                    : []),
+                  ...(data.Product.ProductType?.name
+                    .toLocaleLowerCase()
+                    .includes("tabungan")
+                    ? [
+                        { label: "AKTIF", value: "AKTIF" },
+                        { label: "PASIF", value: "PASIF" },
+                      ]
+                    : []),
+                ]}
+                type="option"
+              />
+            </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Status Dokumen"
+                required
+                value={data.doc_status}
+                onchage={(e: EDocStatus) => {
+                  setData({
+                    ...data,
+                    doc_status: e,
+                  });
+                  record &&
+                    handleChangeRecord(
+                      "edit Status Dokumen",
+                      activities,
+                      setActivities,
+                    );
+                }}
+                options={[
+                  { label: "PENDING", value: "PENDING" },
+                  { label: "DITERIMA", value: "DITERIMA" },
+                  { label: "DIPINJAM", value: "DIPINJAM" },
+                  { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
                 ]}
                 type="option"
               />
@@ -479,7 +544,58 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
                 label="Status Jaminan"
                 required
                 value={data.guarantee_status}
-                onchage={(e: EStatusGuarantee) => {
+                onchage={(e: EDocStatus) => {
+                  setData({
+                    ...data,
+                    guarantee_status: e,
+                  });
+                  record &&
+                    handleChangeRecord(
+                      "edit Status Jaminan",
+                      activities,
+                      setActivities,
+                    );
+                }}
+                options={[
+                  { label: "PENDING", value: "PENDING" },
+                  { label: "DITERIMA", value: "DITERIMA" },
+                  { label: "DIPINJAM", value: "DIPINJAM" },
+                  { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
+                ]}
+                type="option"
+              />
+            </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Status Flagging"
+                required
+                value={data.flagging_status}
+                onchage={(e: EFlaggingStatus) => {
+                  setData({
+                    ...data,
+                    flagging_status: e,
+                  });
+                  record &&
+                    handleChangeRecord(
+                      "edit Status Flagging",
+                      activities,
+                      setActivities,
+                    );
+                }}
+                options={[
+                  { label: "PENDING", value: "PENDING" },
+                  { label: "FLAGGING", value: "FLAGGING" },
+                  { label: "NON_PENSIUNAN", value: "NON_PENSIUNAN" },
+                ]}
+                type="option"
+              />
+            </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Status Jaminan"
+                required
+                value={data.guarantee_status}
+                onchage={(e: EDocStatus) => {
                   setData({
                     ...data,
                     guarantee_status: e,
@@ -529,6 +645,26 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
                     handleChangeRecord("edit Mitra", activities, setActivities);
                 }}
                 options={mitras.map((m) => ({ label: m.name, value: m.id }))}
+                type="option"
+              />
+            </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Kantor Bayar"
+                value={data.payOfficeId}
+                onchage={(e: string) => {
+                  setData({
+                    ...data,
+                    payOfficeId: e,
+                  });
+                  record &&
+                    handleChangeRecord(
+                      "edit Kantor Bayar",
+                      activities,
+                      setActivities,
+                    );
+                }}
+                options={pays.map((m) => ({ label: m.name, value: m.id }))}
                 type="option"
               />
             </Col>
@@ -812,7 +948,7 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
         </Card>
         <div className="flex gap-4 justify-end">
           <Link to={"/app/earsip/submission"}>
-            <Button danger>Cancel</Button>
+            <Button danger>Kembali</Button>
           </Link>
           <Button
             type="primary"
@@ -837,7 +973,9 @@ const defaultData: ISubmission = {
   coments: [],
   activities: [],
   guarantee_status: "PENDING",
+  doc_status: "PENDING",
   approve_status: "PENDING",
+  flagging_status: "PENDING",
   status: true,
   created_at: new Date(),
   updated_at: new Date(),
@@ -850,7 +988,9 @@ const defaultData: ISubmission = {
   Product: {} as IProduct,
   Files: [],
   Mitra: null,
+  PayOffice: null,
   mitraId: null,
+  payOfficeId: null,
   createdById: "",
 };
 

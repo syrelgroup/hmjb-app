@@ -441,7 +441,7 @@ const PayrollPage = () => {
             }}
             scroll={{
               x: "max-content",
-              y: window.innerWidth > 600 ? "53vh" : "65vh",
+              // y: window.innerWidth > 600 ? "53vh" : "65vh",
             }}
           />
         </Card>
