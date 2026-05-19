@@ -31,6 +31,7 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 import api from "../../libs/api";
+import { IDRFormat } from "../utils/utilForm";
 const { RangePicker } = DatePicker;
 
 export default function DataVisitPlan() {
@@ -199,6 +200,19 @@ export default function DataVisitPlan() {
               <CalendarArrowUp size={10} />{" "}
               {moment(record.date_plan).format("DD/MM/YY HH:mm")}
             </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Nilai",
+      key: "nilai",
+      dataIndex: "nilai",
+      render(_value, record) {
+        return (
+          <div className="text-xs opacity-70">
+            <div>Nilai : {IDRFormat(record.value)}</div>
+            <div>Realisasi : {IDRFormat(record.realize_value)}</div>
           </div>
         );
       },
@@ -490,7 +504,7 @@ export default function DataVisitPlan() {
           rowKey={"id"}
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
           columns={columns}
           dataSource={pageprops.data}

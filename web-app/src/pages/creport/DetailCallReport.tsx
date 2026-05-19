@@ -226,7 +226,9 @@ export default function DetailCallReport({ data }: { data: IVisit }) {
                       </label>
                       <p className="text-base font-semibold text-gray-900">
                         {data.date_action
-                          ? moment(data.date_action).format("DD MMMM YYYY")
+                          ? moment(data.date_action).format(
+                              "DD MMMM YYYY HH:mm",
+                            )
                           : "N/A"}
                       </p>
                     </div>
@@ -302,24 +304,44 @@ export default function DetailCallReport({ data }: { data: IVisit }) {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="bg-linear-to-r from-indigo-50 to-blue-50 p-6 border-b border-gray-100">
                   <h2 className="text-lg font-bold text-gray-800">
-                    Nilai Plafond
+                    Nilai Tagihan
                   </h2>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-2">
-                        Total Nilai Permohonan
-                      </label>
-                      <p className="text-2xl md:text-3xl font-bold text-indigo-600">
-                        Rp.{" "}
-                        {data.value
-                          ? new Intl.NumberFormat("id-ID").format(data.value)
-                          : "0"}
-                      </p>
+                <div className="flex gap-4 items-center justify-evenly">
+                  <div className="p-6">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-2">
+                          Nilai Tagihan
+                        </label>
+                        <p className="text-xl md:text-2xl font-bold text-indigo-600">
+                          Rp.{" "}
+                          {data.value
+                            ? new Intl.NumberFormat("id-ID").format(data.value)
+                            : "0"}
+                        </p>
+                      </div>
+                      <div className="text-2xl text-indigo-200">💰</div>
                     </div>
-                    <div className="text-4xl text-indigo-200">💰</div>
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-2">
+                          Realisasi
+                        </label>
+                        <p className="text-xl md:text-2xl font-bold text-indigo-600">
+                          Rp.{" "}
+                          {data.realize_value
+                            ? new Intl.NumberFormat("id-ID").format(
+                                data.realize_value,
+                              )
+                            : "0"}
+                        </p>
+                      </div>
+                      <div className="text-2xl text-indigo-200">💰</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -510,7 +532,7 @@ export default function DetailCallReport({ data }: { data: IVisit }) {
                       </p>
                       <p className="text-sm text-gray-900 font-medium">
                         {data.date_action
-                          ? moment(data.date_action).format("DD MMM YYYY")
+                          ? moment(data.date_action).format("DD MMM YYYY HH:mm")
                           : "N/A"}
                       </p>
                     </div>

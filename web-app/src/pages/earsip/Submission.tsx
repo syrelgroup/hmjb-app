@@ -519,198 +519,203 @@ export default function DataSubmission() {
   ];
 
   const content = (
-    <div className="p-2 w-80">
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Jenis Pemohon</p>
-        <Select
-          placeholder="Pilih jenis pemohon.."
-          className="w-full"
-          options={subTypes.map((t) => ({ label: t.name, value: t.id }))}
-          onChange={(val) =>
-            setPageprops({ ...pageprops, submissionTypeId: val })
-          }
-          allowClear
-          value={pageprops.submissionTypeId}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
+    <div className="p-2 w-full max-w-3xl">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Jenis Pemohon</p>
+          <Select
+            placeholder="Pilih jenis pemohon.."
+            className="w-full"
+            options={subTypes.map((t) => ({ label: t.name, value: t.id }))}
+            onChange={(val) =>
+              setPageprops({ ...pageprops, submissionTypeId: val })
+            }
+            allowClear
+            value={pageprops.submissionTypeId}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Tipe Arsip</p>
+          <Select
+            placeholder="Pilih tipe produk.."
+            className="w-full"
+            options={productTypes.map((t) => ({ label: t.name, value: t.id }))}
+            onChange={(val) =>
+              setPageprops({
+                ...pageprops,
+                productTypeId: val,
+                productId: null,
+              })
+            }
+            allowClear
+            value={pageprops.productTypeId}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Produk</p>
+          <Select
+            placeholder="Pilih produk.."
+            className="w-full"
+            options={products
+              .filter((p) => p.productTypeId === pageprops.productTypeId)
+              .map((t) => ({ label: t.name, value: t.id }))}
+            onChange={(val) => setPageprops({ ...pageprops, productId: val })}
+            allowClear
+            value={pageprops.productId}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Mitra</p>
+          <Select
+            placeholder="Pilih mitra.."
+            className="w-full"
+            options={mitras.map((t) => ({ label: t.name, value: t.id }))}
+            onChange={(val) => setPageprops({ ...pageprops, mitraId: val })}
+            allowClear
+            value={pageprops.mitraId}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Kantor Bayar</p>
+          <Select
+            placeholder="Pilih Kantor Bayar.."
+            className="w-full"
+            options={pays.map((t) => ({ label: t.name, value: t.id }))}
+            onChange={(val) => setPageprops({ ...pageprops, payOfficeId: val })}
+            allowClear
+            value={pageprops.payOfficeId}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Asuransi</p>
+          <Select
+            placeholder="Pilih Asuransi.."
+            className="w-full"
+            options={insc.map((t) => ({ label: t.name, value: t.id }))}
+            onChange={(val) => setPageprops({ ...pageprops, insuranceId: val })}
+            allowClear
+            value={pageprops.insuranceId}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Status Jaminan</p>
+          <Select
+            placeholder="Pilih status jaminan.."
+            className="w-full"
+            options={[
+              { label: "PENDING", value: "PENDING" },
+              { label: "DITERIMA", value: "DITERIMA" },
+              { label: "DIPINJAM", value: "DIPINJAM" },
+              { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
+            ]}
+            onChange={(val) =>
+              setPageprops({ ...pageprops, guarantee_status: val })
+            }
+            allowClear
+            value={pageprops.guarantee_status}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Status Dokumen</p>
+          <Select
+            placeholder="Pilih status doc.."
+            className="w-full"
+            options={[
+              { label: "PENDING", value: "PENDING" },
+              { label: "DITERIMA", value: "DITERIMA" },
+              { label: "DIPINJAM", value: "DIPINJAM" },
+              { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
+            ]}
+            onChange={(val) => setPageprops({ ...pageprops, doc_status: val })}
+            allowClear
+            value={pageprops.doc_status}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Status Nasabah</p>
+          <Select
+            placeholder="Pilih status nasabah.."
+            className="w-full"
+            options={[
+              { label: "PENDING", value: "PENDING" },
+              { label: "AKTIF", value: "AKTIF" },
+              { label: "LUNAS", value: "LUNAS" },
+              { label: "BREAK", value: "BREAK" },
+              { label: "PASIF", value: "PASIF" },
+            ]}
+            onChange={(val) =>
+              setPageprops({ ...pageprops, approve_status: val })
+            }
+            allowClear
+            value={pageprops.approve_status}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col">
+          <p className="mb-1 text-xs">Status Flagging</p>
+          <Select
+            placeholder="Pilih status flagging.."
+            className="w-full"
+            options={[
+              { label: "PENDING", value: "PENDING" },
+              { label: "FLAGGING", value: "FLAGGING" },
+              { label: "NON_PENSIUNAN", value: "NON_PENSIUNAN" },
+            ]}
+            onChange={(val) =>
+              setPageprops({ ...pageprops, flagging_status: val })
+            }
+            allowClear
+            value={pageprops.flagging_status}
+            optionFilterProp={"label"}
+            showSearch
+            size="small"
+          />
+        </div>
+        <div className="flex flex-col col-span-2">
+          <p className="mb-1 text-xs">Periode</p>
+          <RangePicker
+            value={
+              pageprops.backdate && [
+                dayjs(pageprops.backdate[0]),
+                dayjs(pageprops.backdate[1]),
+              ]
+            }
+            onChange={
+              (_date, datestr) =>
+                setPageprops({ ...pageprops, backdate: datestr })
+              // console.log({ _date, datestr })
+            }
+            size="small"
+          />
+        </div>
       </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Tipe Arsip</p>
-        <Select
-          placeholder="Pilih tipe produk.."
-          className="w-full"
-          options={productTypes.map((t) => ({ label: t.name, value: t.id }))}
-          onChange={(val) =>
-            setPageprops({ ...pageprops, productTypeId: val, productId: null })
-          }
-          allowClear
-          value={pageprops.productTypeId}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Produk</p>
-        <Select
-          placeholder="Pilih produk.."
-          className="w-full"
-          options={products
-            .filter((p) => p.productTypeId === pageprops.productTypeId)
-            .map((t) => ({ label: t.name, value: t.id }))}
-          onChange={(val) => setPageprops({ ...pageprops, productId: val })}
-          allowClear
-          value={pageprops.productId}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Mitra</p>
-        <Select
-          placeholder="Pilih mitra.."
-          className="w-full"
-          options={mitras.map((t) => ({ label: t.name, value: t.id }))}
-          onChange={(val) => setPageprops({ ...pageprops, mitraId: val })}
-          allowClear
-          value={pageprops.mitraId}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Kantor Bayar</p>
-        <Select
-          placeholder="Pilih Kantor Bayar.."
-          className="w-full"
-          options={pays.map((t) => ({ label: t.name, value: t.id }))}
-          onChange={(val) => setPageprops({ ...pageprops, payOfficeId: val })}
-          allowClear
-          value={pageprops.payOfficeId}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Asuransi</p>
-        <Select
-          placeholder="Pilih Asuransi.."
-          className="w-full"
-          options={insc.map((t) => ({ label: t.name, value: t.id }))}
-          onChange={(val) => setPageprops({ ...pageprops, insuranceId: val })}
-          allowClear
-          value={pageprops.insuranceId}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Status Jaminan</p>
-        <Select
-          placeholder="Pilih status jaminan.."
-          className="w-full"
-          options={[
-            { label: "PENDING", value: "PENDING" },
-            { label: "DITERIMA", value: "DITERIMA" },
-            { label: "DIPINJAM", value: "DIPINJAM" },
-            { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
-          ]}
-          onChange={(val) =>
-            setPageprops({ ...pageprops, guarantee_status: val })
-          }
-          allowClear
-          value={pageprops.guarantee_status}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Status Dokumen</p>
-        <Select
-          placeholder="Pilih status doc.."
-          className="w-full"
-          options={[
-            { label: "PENDING", value: "PENDING" },
-            { label: "DITERIMA", value: "DITERIMA" },
-            { label: "DIPINJAM", value: "DIPINJAM" },
-            { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
-          ]}
-          onChange={(val) => setPageprops({ ...pageprops, doc_status: val })}
-          allowClear
-          value={pageprops.doc_status}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Status Nasabah</p>
-        <Select
-          placeholder="Pilih status nasabah.."
-          className="w-full"
-          options={[
-            { label: "PENDING", value: "PENDING" },
-            { label: "AKTIF", value: "AKTIF" },
-            { label: "LUNAS", value: "LUNAS" },
-            { label: "BREAK", value: "BREAK" },
-            { label: "PASIF", value: "PASIF" },
-          ]}
-          onChange={(val) =>
-            setPageprops({ ...pageprops, approve_status: val })
-          }
-          allowClear
-          value={pageprops.approve_status}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Status Flagging</p>
-        <Select
-          placeholder="Pilih status flagging.."
-          className="w-full"
-          options={[
-            { label: "PENDING", value: "PENDING" },
-            { label: "FLAGGING", value: "FLAGGING" },
-            { label: "NON_PENSIUNAN", value: "NON_PENSIUNAN" },
-          ]}
-          onChange={(val) =>
-            setPageprops({ ...pageprops, flagging_status: val })
-          }
-          allowClear
-          value={pageprops.flagging_status}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
-
-      <div className="flex flex-col w-full">
-        <p className="mb-1">Periode</p>
-        <RangePicker
-          value={
-            pageprops.backdate && [
-              dayjs(pageprops.backdate[0]),
-              dayjs(pageprops.backdate[1]),
-            ]
-          }
-          onChange={
-            (_date, datestr) =>
-              setPageprops({ ...pageprops, backdate: datestr })
-            // console.log({ _date, datestr })
-          }
-          size="small"
-        />
-      </div>
-      <div className="flex justify-end mt-4">
+      <div className="flex justify-end mt-3">
         <Button
           size="small"
           danger
@@ -766,7 +771,9 @@ export default function DataSubmission() {
                 </Button>
               </a>
             )}
-            <ExportImport />
+            {hasAccess(window.location.pathname, "write") && (
+              <ExportImport data={pageprops.data} />
+            )}
           </div>
           <div className="flex-1 flex items-center justify-end gap-2">
             <Input.Search
@@ -813,7 +820,7 @@ export default function DataSubmission() {
           bordered
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "50vh" : "63vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -842,6 +849,21 @@ export default function DataSubmission() {
               record.CollateralLending?.length !== 0 &&
               record.Visit?.length !== 0,
           }}
+          footer={() => (
+            <div className="flex justify-end pr-4">
+              <div className="text-right">
+                <p className="text-sm font-semibold">
+                  Total Plafond: Rp.{" "}
+                  {IDRFormat(
+                    pageprops.data.reduce(
+                      (sum, item) => sum + (item.value || 0),
+                      0,
+                    ),
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
         />
       </div>
       {action.delete && action.record && (

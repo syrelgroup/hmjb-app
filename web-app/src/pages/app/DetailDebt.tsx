@@ -45,6 +45,16 @@ export const DetailVisitDebt = ({
               <p className="w-4">:</p>
               <p className="flex-1">{visit.VisitStatus?.name}</p>
             </div>
+            <div className="flex gap-2">
+              <p className="w-52">Nilai</p>
+              <p className="w-4">:</p>
+              <p className="flex-1">{IDRFormat(visit.value)}</p>
+            </div>
+            <div className="flex gap-2">
+              <p className="w-52">Realisasi</p>
+              <p className="w-4">:</p>
+              <p className="flex-1">{IDRFormat(visit.realize_value)}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -63,7 +73,7 @@ export const DetailSubmissionDebt = ({
 }) => {
   return (
     <Modal
-      title="Detail Pengajuan"
+      title="Detail Rekening"
       open={open}
       onCancel={() => setOpen(false)}
       onOk={() => setOpen(false)}
@@ -89,7 +99,7 @@ export const DetailSubmissionDebt = ({
               <p className="flex-1">Rp. {IDRFormat(submission.value)}</p>
             </div>
             <div className="flex gap-2">
-              <p className="w-52">Jenis Pengajuan</p>
+              <p className="w-52">Jenis Rekening</p>
               <p className="w-4">:</p>
               <p className="flex-1">
                 {submission.Product.name} (
@@ -97,7 +107,7 @@ export const DetailSubmissionDebt = ({
               </p>
             </div>
             <div className="flex gap-2">
-              <p className="w-52">Status Permohonan</p>
+              <p className="w-52">Status</p>
               <p className="w-4">:</p>
               <p className="flex-1">
                 <Tag
@@ -119,10 +129,16 @@ export const DetailSubmissionDebt = ({
               <p className="w-4">:</p>
               <p className="flex-1">
                 <Tag
-                  color={submission.guarantee_status ? "green" : "red"}
+                  color={
+                    submission.guarantee_status === "DITERIMA"
+                      ? "green"
+                      : submission.guarantee_status === "DIKEMBALIKAN"
+                        ? "cyan"
+                        : "red"
+                  }
                   variant="solid"
                 >
-                  {submission.guarantee_status ? "Aktif" : "Non Aktif"}
+                  {submission.guarantee_status}
                 </Tag>
               </p>
             </div>

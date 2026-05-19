@@ -59,6 +59,7 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
     Role,
     PermitAbsence,
     Insentif,
+    Deduction,
     ...usersaved
   } = body;
   try {
@@ -97,6 +98,7 @@ export const PUT = async (req: Request, res: Response, next: NextFunction) => {
     Role,
     PermitAbsence,
     Insentif,
+    Deduction,
     ...usersaved
   } = body;
 

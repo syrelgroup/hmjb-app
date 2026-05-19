@@ -66,6 +66,12 @@ enum EGBookStatus {
   TELAHDATANG
 }
 
+enum EBill {
+  BAYAR
+  BELUMBAYAR
+  PARTIAL
+}
+
 model Role {
   id          String      @id @default(uuid())
   name        String
@@ -114,6 +120,7 @@ model User {
   CollateralApprover    CollateralLending[] @relation("CollateralApprover")
   VisitApprover         Visit[]             @relation("VisitApprover")
   InsentifApprover      Insentif[]          @relation("InsentifApprover")
+  DeductionCreate       Deduction[]         @relation("DeductionCreated")
   PermitAbsenceApprover PermitAbsence[]     @relation("PermitAbsenceApprover")
   ReuestMade            PermitFile[]        @relation("RequesterRelation")
   ApprovMade            PermitFile[]        @relation("ApproverRelation")
@@ -128,6 +135,7 @@ model User {
   roleId                String
   positionId            String
   PermitAbsence         PermitAbsence[]
+  Deduction             Deduction[]
 }
 
 model SubmissionType {
@@ -196,6 +204,7 @@ model Debitur {
   submissionTypeId String
   Submission       Submission[]
   Visit            Visit[]
+  Billings         Billing[]
 }
 
 model Mitra {
@@ -371,15 +380,16 @@ model VisitPurpose {
 }
 
 model Visit {
-  id          String    @id @default(uuid())
-  value       Int
-  summary     String?   @db.Text
-  coments     String?   @db.Text
-  date_plan   DateTime
-  date_action DateTime?
-  geo         String?
-  files       String?   @db.Text
-  next_action String?   @db.Text
+  id            String    @id @default(uuid())
+  value         Int
+  realize_value Int?      @default(0)
+  summary       String?   @db.Text
+  coments       String?   @db.Text
+  date_plan     DateTime
+  date_action   DateTime?
+  geo           String?
+  files         String?   @db.Text
+  next_action   String?   @db.Text
 
   status          Boolean       @default(true)
   created_at      DateTime      @default(now())
@@ -398,6 +408,22 @@ model Visit {
   visitCategoryId String
   visitStatusId   String?
   visitPurposeId  String?
+}
+
+model Billing {
+  id            String    @id @default(uuid())
+  value         Int       @default(0)
+  realize_value Int       @default(0)
+  bill_status   EBill     @default(BELUMBAYAR)
+  bill_date     DateTime
+  paid_date     DateTime?
+  name          String?
+
+  status     Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  Debitur    Debitur? @relation(fields: [debiturId], references: [id])
+  debiturId  String?
 }
 
 model AbsenceConfig {
@@ -498,6 +524,23 @@ model Insentif {
   userId       String
   ApproverBy   User?   @relation("InsentifApprover", fields: [approverById], references: [id], onUpdate: Cascade)
   approverById String?
+}
+
+model Deduction {
+  id           String       @id @default(uuid())
+  name         String
+  description  String?
+  file         String?
+  nominal_type ENominalType @default(RUPIAH)
+  nominal      Float
+
+  status      Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now())
+  User        User     @relation(fields: [userId], references: [id], onUpdate: Cascade)
+  userId      String
+  CreatedBy   User?    @relation("DeductionCreated", fields: [createdById], references: [id], onUpdate: Cascade)
+  createdById String?
 }
 
 model Payroll {

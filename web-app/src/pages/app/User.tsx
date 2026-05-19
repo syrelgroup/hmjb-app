@@ -377,7 +377,7 @@ export default function UserManagement() {
           rowKey={"id"}
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -396,7 +396,6 @@ export default function UserManagement() {
             pageSizeOptions: [50, 100, 500, 1000],
             size: "small",
             showSizeChanger: true,
-            showQuickJumper: true,
           }}
         />
       </div>
@@ -492,6 +491,14 @@ const UpsertData = ({
       style={{ top: 10 }}
       loading={loading}
       onOk={() => handleSubmit()}
+      okButtonProps={{
+        disabled:
+          !data.roleId ||
+          !data.positionId ||
+          !data.fullname ||
+          !data.username ||
+          !data.absen_method,
+      }}
     >
       <div className="flex gap-4 flex-col sm:flex-row">
         <div className="flex-1 flex flex-col gap-2">
@@ -514,7 +521,6 @@ const UpsertData = ({
           <InputUtil
             label="NIK"
             value={data.nik || ""}
-            required
             type="text"
             layout="horizontal"
             onchage={(value: string) => setData({ ...data, nik: value })}
@@ -771,6 +777,7 @@ const defaultData: IUser = {
   UserCost: [],
   PermitAbsence: [],
   Insentif: [],
+  Deduction: [],
 };
 
 const defaultCost: IUserCost = {

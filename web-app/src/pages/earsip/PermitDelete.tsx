@@ -226,6 +226,7 @@ const PermitDelete = () => {
             type="primary"
             size="small"
             icon={<FormOutlined />}
+            disabled={record.permit_status !== "PENDING"}
             onClick={() =>
               setPageaction({ ...pageaction, process: true, record })
             }
@@ -576,7 +577,7 @@ const ProsesPermohonan = ({
     setLoading(true);
     await api
       .request({
-        url: `${import.meta.env.VITE_API_URL}/permit_delete?id=${record.id}`,
+        url: `${import.meta.env.VITE_API_URL}/permit_delete?id=${record.id}&action=${data.permit_status}`,
         method: "PATCH",
         data: data,
       })

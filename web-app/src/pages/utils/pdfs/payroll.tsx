@@ -126,6 +126,17 @@ const generate = (record: IUser) => {
             )
             .join("")}
 
+            ${temp.tt_deduction
+              .map(
+                (a) => `
+            <div class="flex justify-between">
+              <span class="text-gray-600">${a.name}</span>
+              <span class="text-red-600">-${IDRFormat(a.nominal_type === "RUPIAH" ? a.nominal : record.salary * (a.nominal / 100))}</span>
+            </div>
+          `,
+              )
+              .join("")}
+
           <div class="flex justify-between">
             <span class="text-gray-600">Pot. Alpha</span>
             <span class="text-red-600">-${IDRFormat(temp.alphaPay)}</span>
@@ -139,14 +150,14 @@ const generate = (record: IUser) => {
             <span class="text-red-600">-${IDRFormat(temp.fastLeaveDeduction)}</span>
           </div>
           <div class="flex justify-between border-b pb-1.5 mb-1">
-            <span class="text-gray-600">PPh21 (Pajak Bulan Ini)</span>
+            <span class="text-gray-600">PPh21</span>
             <span class="text-red-600">-${IDRFormat(temp.pph)}</span>
           </div>
 
           <!-- TOTAL POTONGAN -->
           <div class="flex justify-between font-bold text-red-700 mt-2">
             <span>Total Potongan</span>
-            <span>-${IDRFormat(temp.deductionPay + temp.alphaPay + temp.latePay + temp.fastLeaveDeduction + temp.pph)}</span>
+            <span>-${IDRFormat(temp.deductionPay + temp.alphaPay + temp.latePay + temp.fastLeaveDeduction + temp.pph + temp.tt_deductionPay)}</span>
           </div>
         </div>
       </div>

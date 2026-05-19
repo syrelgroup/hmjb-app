@@ -157,7 +157,7 @@ export default function LogActivities() {
               setPageProps({ ...pageProps, page, limit: pageSize }),
             pageSizeOptions: [50, 100, 200],
             showSizeChanger: true,
-            showQuickJumper: true,
+            // showQuickJumper: true,
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} dari ${total} aktivitas`,
           }}

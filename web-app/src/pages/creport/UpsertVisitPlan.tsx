@@ -29,6 +29,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
   );
   const [users, setUsers] = useState<IUser[]>([]);
   const [search, setSearch] = useState("");
+  const [dateErrors, setDateErrors] = useState<{ [key: string]: string }>({});
   const { user, hasAccess } = useContext((state: any) => state);
   const [data, setData] = useState(
     record || {
@@ -63,12 +64,47 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
         .request({
           method: "GET",
           url: "/user",
+          params: { limit: 1000 },
         })
         .then((res) => setUsers(res.data.data));
     })();
   }, []);
 
+  const validateDates = () => {
+    const errors: { [key: string]: string } = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Validate date_plan >= today
+    if (data.date_plan) {
+      const planDate = new Date(data.date_plan);
+      planDate.setHours(0, 0, 0, 0);
+      if (planDate < today) {
+        errors.date_plan = "Tanggal rencana tidak boleh kurang dari hari ini";
+      }
+    }
+
+    // Validate date_action >= date_plan
+    if (data.date_action && data.date_plan) {
+      const actionDate = new Date(data.date_action);
+      const planDate = new Date(data.date_plan);
+      actionDate.setHours(0, 0, 0, 0);
+      planDate.setHours(0, 0, 0, 0);
+      if (actionDate < planDate) {
+        errors.date_action =
+          "Tanggal aktual tidak boleh kurang dari tanggal rencana";
+      }
+    }
+
+    setDateErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async () => {
+    if (!validateDates()) {
+      return;
+    }
+
     await api
       .request({
         url: "/visit",
@@ -269,7 +305,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
         <Card
           title={
             <div className="flex gap-2 items-center">
-              <BookPlus size={18} /> Data Permohonan
+              <BookPlus size={18} /> Data Kunjungan
             </div>
           }
           style={{ marginTop: 15, marginBottom: 15 }}
@@ -286,18 +322,43 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
               />
             </Col>
             <Col xs={12} md={8}>
-              <InputUtil
-                label="Tanggal Rencana Kunjungan"
-                required
-                value={moment(data.date_plan).format("YYYY-MM-DD")}
-                onchage={(e: string) => {
-                  setData({
-                    ...data,
-                    date_plan: new Date(e),
-                  });
-                }}
-                type="date"
-              />
+              <div>
+                <InputUtil
+                  label="Tanggal Rencana Kunjungan"
+                  required
+                  value={moment(data.date_plan).format("YYYY-MM-DD")}
+                  onchage={(e: string) => {
+                    setData({
+                      ...data,
+                      date_plan: new Date(e),
+                    });
+                    // Validate date_plan
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const planDate = new Date(e);
+                    planDate.setHours(0, 0, 0, 0);
+                    if (planDate < today) {
+                      setDateErrors((prev) => ({
+                        ...prev,
+                        date_plan:
+                          "Tanggal rencana tidak boleh kurang dari hari ini",
+                      }));
+                    } else {
+                      setDateErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors.date_plan;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  type="date"
+                />
+                {dateErrors.date_plan && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {dateErrors.date_plan}
+                  </p>
+                )}
+              </div>
             </Col>
             <Col xs={12} md={8}>
               <InputUtil
@@ -341,7 +402,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
             </Col>
             <Col xs={12} md={8}>
               <InputUtil
-                label="Plafond/Nilai"
+                label="Nilai Tagihan"
                 value={IDRFormat(data.value)}
                 onchage={(e: string) => {
                   setData({ ...data, value: IDRToNumber(e) });
@@ -352,7 +413,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
             {submissions.length !== 0 && (
               <Col xs={12} md={8}>
                 <InputUtil
-                  label="Data Permohonan"
+                  label="Data Rekening"
                   value={data.submissionId}
                   options={submissions.map((s) => ({
                     label: `${s.id} (${s.Product.name}-${s.Product.ProductType?.name})`,
@@ -533,6 +594,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
 const defaultData: IVisit = {
   id: "",
   value: 0,
+  realize_value: 0,
   date_plan: new Date(),
   summary: "",
   date_action: null,

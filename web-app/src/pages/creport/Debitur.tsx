@@ -20,6 +20,7 @@ import moment from "moment";
 import { Link } from "react-router-dom";
 import { CloseOutlined } from "@ant-design/icons";
 import api from "../../libs/api";
+import { IDRFormat } from "../utils/utilForm";
 
 export default function DebiturCallReport() {
   const [loading, setLoading] = useState(false);
@@ -241,25 +242,20 @@ export default function DebiturCallReport() {
       title: "Status",
       key: "approve_status",
       dataIndex: "approve_status",
-      render(value) {
-        const statusConfig: any = {
-          APPROVED: { color: "green", label: "✅ DISETUJUI" },
-          REJECTED: { color: "red", label: "❌ DITOLAK" },
-          PENDING: { color: "orange", label: "⏳ MENUNGGU" },
-        };
-        const config = statusConfig[value] || statusConfig.PENDING;
+      render(_value, record) {
+        return <span>{record.VisitStatus?.name}</span>;
+      },
+    },
+    {
+      title: "Nilai",
+      key: "nilai",
+      dataIndex: "nilai",
+      render(_value, record) {
         return (
-          <span
-            className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              config.color === "green"
-                ? "bg-green-100 text-green-700"
-                : config.color === "red"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-orange-100 text-orange-700"
-            }`}
-          >
-            {config.label}
-          </span>
+          <div className="text-xs opacity-70">
+            <div>Nilai : {IDRFormat(record.value)}</div>
+            <div>Realisasi : {IDRFormat(record.realize_value)}</div>
+          </div>
         );
       },
     },
@@ -383,7 +379,7 @@ export default function DebiturCallReport() {
           rowKey={"id"}
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -432,8 +428,6 @@ export default function DebiturCallReport() {
             },
             pageSizeOptions: [50, 100, 500, 1000],
             size: "small",
-            showSizeChanger: true,
-            showQuickJumper: true,
           }}
         />
       </div>

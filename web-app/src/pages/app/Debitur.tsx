@@ -125,7 +125,7 @@ export default function DataDebitur() {
       },
     },
     {
-      title: "Jumlah Permohonan",
+      title: "Jumlah Rekening",
       key: "jumlah_permohonan",
       dataIndex: "jumlah_permohonan",
       render(_value, record, _index) {
@@ -253,7 +253,7 @@ export default function DataDebitur() {
           bordered
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -270,6 +270,7 @@ export default function DataDebitur() {
             },
             pageSizeOptions: [50, 100, 500, 1000],
             size: "small",
+            showSizeChanger: true,
           }}
         />
       </div>

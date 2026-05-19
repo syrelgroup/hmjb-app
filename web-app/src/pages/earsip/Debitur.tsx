@@ -265,12 +265,14 @@ export default function DebiturEArsip() {
               Jaminan{" "}
               <span
                 className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                  record.guarantee_status
+                  record.guarantee_status === "DITERIMA"
                     ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
+                    : record.guarantee_status === "PENDING"
+                      ? "bg-orange-100 text-orange-700"
+                      : "bg-red-100 text-red-700"
                 }`}
               >
-                {record.guarantee_status ? "Aktif" : "Tidak Aktif"}
+                {record.guarantee_status}
               </span>
             </div>
           </div>
@@ -400,7 +402,7 @@ export default function DebiturEArsip() {
           rowKey={"id"}
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "50vh" : "63vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -449,8 +451,6 @@ export default function DebiturEArsip() {
             },
             pageSizeOptions: [50, 100, 500, 1000],
             size: "small",
-            showSizeChanger: true,
-            showQuickJumper: true,
           }}
         />
       </div>

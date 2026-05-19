@@ -1,5 +1,4 @@
 import {
-  Alert,
   App,
   Button,
   DatePicker,
@@ -7,8 +6,6 @@ import {
   Modal,
   Popconfirm,
   Popover,
-  Radio,
-  Select,
   Table,
   type TableProps,
 } from "antd";
@@ -16,7 +13,7 @@ import { Plus, Edit, Trash, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   IActionPage,
-  IInsentif,
+  IDeduction,
   IPageProps,
   IUser,
 } from "../../libs/interface";
@@ -30,21 +27,20 @@ import { IDRFormat, IDRToNumber, InputUtil } from "../utils/utilForm";
 import type { HookAPI } from "antd/es/modal/useModal";
 const { RangePicker } = DatePicker;
 
-export default function InsentifPage() {
+export default function DeductionPage() {
   const [loading, setLoading] = useState(false);
-  const [pageprops, setPageprops] = useState<IPageProps<IInsentif>>({
+  const [pageprops, setPageprops] = useState<IPageProps<IDeduction>>({
     page: 1,
     limit: 50,
     data: [],
     total: 0,
     search: "",
-    approve_status: "",
     backdate: "",
   });
   const user = useContext((state: any) => state.user);
   const { modal } = App.useApp();
 
-  const [action, setAction] = useState<IActionPage<IInsentif>>({
+  const [action, setAction] = useState<IActionPage<IDeduction>>({
     upsert: false,
     delete: false,
     process: false,
@@ -57,13 +53,12 @@ export default function InsentifPage() {
 
     await api
       .request({
-        url: "/insentif",
+        url: "/deduction",
         method: "GET",
         params: {
           page: pageprops.page,
           limit: pageprops.limit,
           search: pageprops.search,
-          approve_status: pageprops.approve_status,
           backdate: (pageprops.backdate || "").toString(),
         },
       })
@@ -82,15 +77,9 @@ export default function InsentifPage() {
       await getData();
     }, 200);
     return () => clearTimeout(timeout);
-  }, [
-    pageprops.page,
-    pageprops.limit,
-    pageprops.search,
-    pageprops.approve_status,
-    pageprops.backdate,
-  ]);
+  }, [pageprops.page, pageprops.limit, pageprops.search, pageprops.backdate]);
 
-  const columns: TableProps<IInsentif>["columns"] = [
+  const columns: TableProps<IDeduction>["columns"] = [
     {
       title: "ID",
       key: "id",
@@ -161,28 +150,6 @@ export default function InsentifPage() {
       },
     },
     {
-      title: "Status",
-      key: "status",
-      dataIndex: "status",
-      render(_value, record, _index) {
-        return (
-          <div>
-            <div
-              className={`px-2 py-1 rounded text-xs font-semibold w-max ${
-                record.approve_status === "DISETUJUI"
-                  ? "bg-green-100 text-green-800"
-                  : record.approve_status === "DITOLAK"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-yellow-100 text-yellow-800"
-              }`}
-            >
-              {record.approve_status}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
       title: "LastUpdate",
       key: "created_at",
       dataIndex: "created_at",
@@ -210,7 +177,6 @@ export default function InsentifPage() {
                 size="small"
                 type="primary"
                 onClick={() => setAction({ ...action, upsert: true, record })}
-                disabled={record.approve_status !== "PENDING"}
               ></Button>
             )}
             {hasAccess(window.location.pathname, "proses") && (
@@ -219,7 +185,6 @@ export default function InsentifPage() {
                 size="small"
                 type="primary"
                 onClick={() => setAction({ ...action, process: true, record })}
-                disabled={record.approve_status !== "PENDING"}
               ></Button>
             )}
             {hasAccess(window.location.pathname, "delete") && (
@@ -227,12 +192,7 @@ export default function InsentifPage() {
                 onConfirm={() => handleDelete(record.id)}
                 title="Apakah Anda yakin ingin menghapus data ini?"
               >
-                <Button
-                  icon={<Trash size={15} />}
-                  size="small"
-                  danger
-                  disabled={record.approve_status !== "PENDING"}
-                ></Button>
+                <Button icon={<Trash size={15} />} size="small" danger></Button>
               </Popconfirm>
             )}
           </div>
@@ -246,7 +206,7 @@ export default function InsentifPage() {
     try {
       await api
         .request({
-          url: "/insentif?id=" + id,
+          url: "/deduction?id=" + id,
           method: "DELETE",
         })
         .then((res) => {
@@ -271,28 +231,6 @@ export default function InsentifPage() {
 
   const content = (
     <div className="p-2 w-96 max-h-72 overflow-y-auto">
-      <div className="flex flex-col w-full">
-        <label className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          Status Permohonan
-        </label>
-        <Select
-          placeholder="Pilih status permohonan..."
-          className="w-full"
-          options={["DISETUJUI", "DITOLAK", "PENDING"].map((t) => ({
-            label: t,
-            value: t,
-          }))}
-          onChange={(val) =>
-            setPageprops({ ...pageprops, approve_status: val })
-          }
-          allowClear
-          value={pageprops.approve_status}
-          optionFilterProp={"label"}
-          showSearch
-          size="small"
-        />
-      </div>
       <div className="flex flex-col w-full">
         <label className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
           <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
@@ -321,7 +259,6 @@ export default function InsentifPage() {
             setPageprops({
               ...pageprops,
               backdate: "",
-              permit_status: "",
             })
           }
         >
@@ -336,10 +273,10 @@ export default function InsentifPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Data Insentif
+            Data Potongan Tidak Tetap
           </h1>
           <p className="text-slate-500 text-sm">
-            Kelola data insentif karyawan dengan mudah dan efisien
+            Kelola data potongan tidak tetap karyawan dengan mudah dan efisien
           </p>
         </div>
       </div>
@@ -420,6 +357,7 @@ export default function InsentifPage() {
             pageSizeOptions: [50, 100, 500, 1000],
             size: "small",
             showSizeChanger: true,
+            showQuickJumper: true,
           }}
         />
       </div>
@@ -432,17 +370,6 @@ export default function InsentifPage() {
         user={user}
         hook={modal}
       />
-      {action.record && action.process && (
-        <ProsesData
-          key={"process" + action.record.id}
-          record={action.record}
-          open={action.process}
-          setOpen={(open) => setAction({ ...action, process: open })}
-          getData={getData}
-          user={user}
-          hook={modal}
-        />
-      )}
     </div>
   );
 }
@@ -455,14 +382,14 @@ const UpsertData = ({
   user,
   hook,
 }: {
-  record?: IInsentif;
+  record?: IDeduction;
   open: boolean;
   setOpen: (open: boolean) => void;
   getData: () => void;
   user: IUser;
   hook: HookAPI;
 }) => {
-  const [data, setData] = useState<IInsentif>(
+  const [data, setData] = useState<IDeduction>(
     record || {
       ...defaultData,
       User: user,
@@ -476,7 +403,7 @@ const UpsertData = ({
     try {
       await api
         .request({
-          url: "/insentif",
+          url: "/deduction",
           method: record ? "PUT" : "POST",
           data: data,
         })
@@ -504,9 +431,7 @@ const UpsertData = ({
   return (
     <Modal
       open={open}
-      title={
-        record ? "Edit Permohonan Insentif" : "Tambah Permohonan Insentif baru"
-      }
+      title={record ? "Edit Potongan" : "Tambah Potongan baru"}
       onCancel={() => setOpen(false)}
       onOk={handleSubmit}
       style={{ top: 10 }}
@@ -532,7 +457,7 @@ const UpsertData = ({
         <InputUtil
           type="text"
           value={data.name}
-          label="Nama Permohonan"
+          label="Nama Potongan"
           required
           layout="horizontal"
           onchage={(e: string) => setData({ ...data, name: e })}
@@ -590,172 +515,18 @@ const UpsertData = ({
   );
 };
 
-const ProsesData = ({
-  record,
-  open,
-  setOpen,
-  getData,
-  user,
-  hook,
-}: {
-  record: IInsentif;
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  getData: () => void;
-  user: IUser;
-  hook: HookAPI;
-}) => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<IInsentif>({
-    ...record,
-    approve_status: "DISETUJUI",
-  });
-  const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      await api
-        .request({
-          url: "/insentif?id=" + record.id,
-          method: "PUT",
-          data: { ...data, approverById: user.id },
-        })
-        .then((res) => {
-          hook.success({
-            title: "Berhasil",
-            content: res.data.msg || "Data berhasil diproses",
-          });
-          setOpen(false);
-          getData();
-        });
-      setLoading(false);
-    } catch (err) {
-      hook.error({
-        title: "Gagal memproses data",
-        content:
-          (err as any).response.data.msg ||
-          "Terjadi kesalahan saat memproses data",
-      });
-      console.log(err);
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal
-      open={open}
-      title="Verifikasi Permohonan Insentif"
-      onCancel={() => !loading && setOpen(false)}
-      onOk={handleSubmit}
-      confirmLoading={loading}
-      okText="Konfirmasi"
-      okButtonProps={{
-        // Warna tombol mengikuti status yang dipilih
-        danger: status === "DITOLAK",
-        className:
-          status === "DISETUJUI" ? "bg-green-600 hover:bg-green-500" : "",
-      }}
-      style={{ top: 20 }}
-    >
-      <div className="flex flex-col gap-5 py-4">
-        {/* Ringkasan Karyawan */}
-        <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-          <p className="text-[10px] text-gray-500 uppercase font-bold">
-            Nama Karyawan
-          </p>
-          <p className="text-sm font-semibold text-gray-800">
-            {data?.User?.fullname}
-          </p>
-        </div>
-
-        {/* Pemilihan Status */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-gray-600 uppercase">
-            Keputusan
-          </label>
-          <Radio.Group
-            block
-            options={[
-              { label: "Setujui", value: "DISETUJUI" },
-              { label: "Tolak", value: "DITOLAK" },
-            ]}
-            value={data.approve_status}
-            onChange={(e) =>
-              setData({ ...data, approve_status: e.target.value })
-            }
-            optionType="button"
-            buttonStyle="solid"
-          />
-        </div>
-
-        {/* Panel Pengaturan Nominal (Hanya muncul jika DISETUJUI) */}
-        <div className="border rounded-lg p-4 bg-white shadow-sm flex flex-col gap-4">
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-tight">
-            Penyesuaian Insentif
-          </p>
-
-          {data.nominal_type === "RUPIAH" && (
-            <InputUtil
-              label="Nominal Insentif"
-              type="text"
-              required
-              value={IDRFormat(data.nominal)}
-              onchage={(e: string) =>
-                setData({ ...data, nominal: IDRToNumber(e || "0") })
-              }
-            />
-          )}
-
-          {data.nominal_type === "PERCENT" && (
-            <div className="flex flex-col gap-4">
-              <InputUtil
-                label="Nominal Insentif (%)"
-                type="number"
-                required
-                value={data.nominal}
-                onchage={(e: string) =>
-                  setData({ ...data, nominal: parseFloat(e || "0") })
-                }
-              />
-              <InputUtil
-                label="Nominal Insentif (Rp)"
-                type="text"
-                required
-                value={IDRFormat(
-                  (data.User.salary || 0) * (data.nominal / 100),
-                )}
-                disabled
-              />
-            </div>
-          )}
-        </div>
-
-        <Alert
-          message={
-            data.approve_status === "DISETUJUI"
-              ? "Sistem akan memperbarui data absensi dan payroll sesuai nominal di atas."
-              : "Permohonan akan dibatalkan tanpa mengubah data payroll."
-          }
-          type={data.approve_status === "DISETUJUI" ? "info" : "error"}
-          showIcon
-        />
-      </div>
-    </Modal>
-  );
-};
-
-const defaultData: IInsentif = {
+const defaultData: IDeduction = {
   id: "",
   name: "",
   nominal_type: "RUPIAH",
   nominal: 0,
   description: null,
-  approve_status: "PENDING",
   file: null,
   status: true,
   created_at: new Date(),
   updated_at: new Date(),
   userId: "",
   User: {} as IUser,
-  ApproverBy: {} as IUser,
-  approverById: null,
+  CreatedBy: {} as IUser,
+  createdById: null,
 };

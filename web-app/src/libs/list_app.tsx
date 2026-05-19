@@ -23,7 +23,9 @@ import {
   BankOutlined,
   BranchesOutlined,
   DollarCircleOutlined,
+  MoneyCollectOutlined,
   SecurityScanOutlined,
+  TagsOutlined,
 } from "@ant-design/icons";
 
 export type AppType = "earsip" | "callreport" | "absensi" | "guestbook" | "all";
@@ -200,6 +202,13 @@ export const menus: IMenu[] = [
         need_access: true,
         can_access: ["read", "write", "update", "delete"],
       },
+      {
+        name: "Tagihan",
+        path: "/app/callreport/tagihan",
+        icon: <TagsOutlined size={15} />,
+        need_access: true,
+        can_access: ["read", "write", "update", "delete"],
+      },
     ],
   },
   {
@@ -242,6 +251,13 @@ export const menus: IMenu[] = [
         icon: <Gift size={15} />,
         need_access: true,
         can_access: ["read", "write", "update", "delete", "proses"],
+      },
+      {
+        name: "Potongan Tidak Tetap",
+        path: "/app/absensi/deduction",
+        icon: <MoneyCollectOutlined size={15} />,
+        need_access: true,
+        can_access: ["read", "write", "update", "delete"],
       },
       {
         name: "Rekap Gaji",

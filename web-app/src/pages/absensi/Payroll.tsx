@@ -10,11 +10,12 @@ import {
 import moment from "moment";
 import api from "../../libs/api";
 import { IDRFormat } from "../utils/utilForm";
-import { PTKPDetail, type IPTKP, type IUser } from "../../libs/interface";
+import { type IUser } from "../../libs/interface";
 import type { ColumnsType } from "antd/es/table";
 import { CollapseList } from "../utils/utilComp";
 import { printAllPayrol } from "../utils/pdfs/payrolls";
 import { printPayrol } from "../utils/pdfs/payroll";
+import { calculatePayroll } from "../utils/libs";
 
 const PayrollPage = () => {
   const [loading, setLoading] = useState(false);
@@ -48,123 +49,6 @@ const PayrollPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculatePayroll = (user: IUser) => {
-    const salary = user.salary || 0;
-    const absences = user.Absence || [];
-    const permit = user.PermitAbsence || [];
-    const insentif = user.Insentif || [];
-    const userCosts = user.UserCost || [];
-
-    const latededuction = absences.reduce(
-      (acc, curr) => acc + (curr.late_deduction || 0),
-      0,
-    );
-    const late = absences.filter((a) =>
-      (a.description || "").split(",").includes("TERLAMBAT"),
-    );
-
-    const alpha = absences.filter((a) => a.absence_status === "ALPHA");
-    const lembur = absences.filter((a) =>
-      (a.description || "").split(",").includes("LEMBUR"),
-    );
-    const fastleave = absences.filter((a) =>
-      (a.description || "").split(",").includes("PULANG_CEPAT"),
-    );
-    const hadir = absences.filter((a) => a.absence_status === "HADIR");
-    const sakit = absences.filter((a) => a.absence_status === "SAKIT");
-    const cuti = absences.filter((a) => a.absence_status === "CUTI");
-    const perdin = absences.filter(
-      (a) =>
-        a.absence_status === "PERDIN" ||
-        (a.description || "").split(",").includes("PERDIN"),
-    );
-
-    const lemburPay = absences.reduce((acc, curr) => acc + curr.lemburan, 0);
-    const alphaDeduction = alpha.reduce(
-      (acc, curr) => acc + curr.alpha_deduction,
-      0,
-    );
-    const fastLeaveDeduction = fastleave.reduce(
-      (acc, curr) => acc + curr.fast_leave_deduction,
-      0,
-    );
-    const totalInsentifPay = insentif.reduce((acc, cost) => {
-      const nominal =
-        cost.nominal_type === "PERCENT"
-          ? salary * (cost.nominal / 100)
-          : cost.nominal;
-      return acc + nominal;
-    }, 0);
-
-    // Calculate user costs (allowances and deductions)
-    const totalAllowanceUserCost = userCosts
-      .filter((cost) => cost.type === "PENAMBAHAN")
-      .reduce((acc, cost) => {
-        const nominal =
-          cost.nominal_type === "PERCENT"
-            ? salary * (cost.nominal / 100)
-            : cost.nominal;
-        return acc + nominal;
-      }, 0);
-
-    const totalDeductionUserCost = userCosts
-      .filter((cost) => cost.type === "PENGURANGAN")
-      .reduce((acc, cost) => {
-        const nominal =
-          cost.nominal_type === "PERCENT"
-            ? salary * (cost.nominal / 100)
-            : cost.nominal;
-        return acc + nominal;
-      }, 0);
-
-    const grossSalary =
-      salary + lemburPay + totalAllowanceUserCost + totalInsentifPay;
-    const netBeforeTax = Math.max(
-      0,
-      grossSalary -
-        latededuction -
-        alphaDeduction -
-        fastLeaveDeduction -
-        totalDeductionUserCost,
-    );
-    const ptkp: IPTKP =
-      PTKPDetail.find((tkp) => tkp.name === user.ptkp) || PTKPDetail[0];
-    const taxableIncome = Math.max(0, netBeforeTax - ptkp.value / 12);
-    const pph = Math.round(taxableIncome * 0.05);
-    const takeHome = Math.max(0, netBeforeTax - pph);
-
-    return {
-      salary,
-      late,
-      latePay: latededuction,
-      alpha,
-      alphaPay: alphaDeduction,
-      lembur,
-      lemburPay: lemburPay,
-      fastleave,
-      fastLeaveDeduction,
-      hadir,
-      sakit,
-      cuti,
-      perdin,
-      grossSalary,
-      netBeforeTax,
-      taxableIncome,
-      pph,
-      takeHome,
-      permitCount: permit.length,
-      permitApproved: permit.filter((p) => p.permit_status === "DISETUJUI")
-        .length,
-      permitPending: permit.filter((p) => p.permit_status === "PENDING").length,
-      allowance: userCosts.filter((a) => a.type === "PENAMBAHAN"),
-      allowancePay: totalAllowanceUserCost,
-      deduction: userCosts.filter((a) => a.type === "PENAMBAHAN"),
-      deductionPay: totalDeductionUserCost,
-      insentif: insentif,
-      insentifPay: totalInsentifPay,
-    };
   };
 
   const exportToExcel = () => {};
@@ -220,18 +104,17 @@ const PayrollPage = () => {
       align: "right",
     },
     {
-      title: "Tunjangan Bulanan",
+      title: "Tunj. & Pot. Tetap",
       key: "allowance",
-      render: (_value, record) =>
-        IDRFormat(calculatePayroll(record).allowancePay),
-      align: "right",
-    },
-    {
-      title: "Potongan Bulanan",
-      key: "deductionUserCost",
-      render: (_value, record) =>
-        IDRFormat(calculatePayroll(record).deductionPay),
-      align: "right",
+      render: (_value, record) => {
+        const temp = calculatePayroll(record);
+        return (
+          <div>
+            <div>Tunj : {IDRFormat(temp.allowancePay)}</div>
+            <div>Pot : {IDRFormat(temp.deductionPay)}</div>
+          </div>
+        );
+      },
     },
     {
       title: "Kehadiran",
@@ -261,7 +144,7 @@ const PayrollPage = () => {
       },
     },
     {
-      title: "Detail Kehadiran 1",
+      title: "Detail Kehadiran",
       key: "detail_hadir",
       render: (_value, record) => {
         const temp = calculatePayroll(record);
@@ -292,7 +175,7 @@ const PayrollPage = () => {
       },
     },
     {
-      title: "Detail Kehadiran 2",
+      title: "Kalkulasi Kehadiran",
       key: "detail_cost",
       render: (_value, record) => {
         const temp = calculatePayroll(record);
@@ -337,6 +220,21 @@ const PayrollPage = () => {
         return (
           <CollapseList
             items={temp.insentif.map(
+              (i) =>
+                `${i.name} : ${i.nominal_type === "RUPIAH" ? IDRFormat(i.nominal) : IDRFormat(record.salary * (i.nominal / 100))}`,
+            )}
+          />
+        );
+      },
+    },
+    {
+      title: "Pot. Tidak Tetap",
+      key: "pot",
+      render: (_value, record) => {
+        const temp = calculatePayroll(record);
+        return (
+          <CollapseList
+            items={temp.tt_deduction.map(
               (i) =>
                 `${i.name} : ${i.nominal_type === "RUPIAH" ? IDRFormat(i.nominal) : IDRFormat(record.salary * (i.nominal / 100))}`,
             )}

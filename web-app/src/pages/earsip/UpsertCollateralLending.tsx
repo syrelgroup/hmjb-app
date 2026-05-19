@@ -144,7 +144,29 @@ const UpsertCollateralLending = () => {
             <Form.Item
               label="Tanggal Rencana Pengembalian"
               name="end_at"
-              rules={[{ required: true }]}
+              rules={[
+                {
+                  required: true,
+                  message: "Tanggal rencana pengembalian wajib diisi",
+                },
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve();
+
+                    const startDate = form.getFieldValue("start_at");
+                    if (!startDate) return Promise.resolve();
+
+                    if (value.isBefore(startDate, "day")) {
+                      return Promise.reject(
+                        new Error(
+                          "Tanggal rencana pengembalian tidak boleh kurang dari tanggal peminjaman",
+                        ),
+                      );
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             >
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>
@@ -152,7 +174,26 @@ const UpsertCollateralLending = () => {
             <Form.Item
               label="Tanggal Pengembalian Aktual"
               name="return_at"
-              rules={[{ required: false }]}
+              rules={[
+                {
+                  required: false,
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve();
+
+                    const startDate = form.getFieldValue("start_at");
+                    if (!startDate) return Promise.resolve();
+
+                    if (value.isBefore(startDate, "day")) {
+                      return Promise.reject(
+                        new Error(
+                          "Tanggal pengembalian aktual tidak boleh kurang dari tanggal peminjaman",
+                        ),
+                      );
+                    }
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             >
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>

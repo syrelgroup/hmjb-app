@@ -96,6 +96,7 @@ export const calculatePayroll = (user: IUser) => {
   const absences = user.Absence || [];
   const permit = user.PermitAbsence || [];
   const insentif = user.Insentif || [];
+  const deduction = user.Deduction || [];
   const userCosts = user.UserCost || [];
 
   // --- 1. Perhitungan Potongan Absensi ---
@@ -143,6 +144,13 @@ export const calculatePayroll = (user: IUser) => {
         : cost.nominal;
     return acc + nominal;
   }, 0);
+  const totalDeductionPay = deduction.reduce((acc, cost) => {
+    const nominal =
+      cost.nominal_type === "PERCENT"
+        ? salary * (cost.nominal / 100)
+        : cost.nominal;
+    return acc + nominal;
+  }, 0);
 
   const totalAllowanceUserCost = userCosts
     .filter((cost) => cost.type === "PENAMBAHAN")
@@ -183,7 +191,8 @@ export const calculatePayroll = (user: IUser) => {
       latededuction -
       alphaDeduction -
       fastLeaveDeduction -
-      totalDeductionUserCost,
+      totalDeductionUserCost -
+      totalDeductionPay,
   );
   const takeHome = Math.max(0, netBeforeTax - pphBulanan);
 
@@ -218,6 +227,8 @@ export const calculatePayroll = (user: IUser) => {
     deductionPay: totalDeductionUserCost,
     insentif: insentif,
     insentifPay: totalInsentifPay,
+    tt_deduction: deduction,
+    tt_deductionPay: totalDeductionPay,
 
     // Properti pelengkap agar slip lampiran di bawah tidak error:
     bruto: grossSalary,

@@ -173,7 +173,7 @@ export default function DataPosition() {
           bordered
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -190,6 +190,7 @@ export default function DataPosition() {
             },
             pageSizeOptions: [50, 100, 500, 1000],
             size: "small",
+            showSizeChanger: true,
           }}
         />
       </div>

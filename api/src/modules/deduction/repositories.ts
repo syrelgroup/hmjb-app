@@ -1,16 +1,16 @@
-import type { EPermitStatus, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import moment from "moment";
 import prisma from "../../libs/prisma.js";
 import { ResponseServer } from "../../libs/util.js";
 
 export const GET = async (req: Request, res: Response, next: NextFunction) => {
-  let { page = 1, limit = 50, search, backdate, approve_status } = req.query;
+  let { page = 1, limit = 50, search, backdate } = req.query;
   page = Number(page);
   limit = Number(limit);
   const skip = (page - 1) * limit;
 
-  const where: Prisma.InsentifWhereInput = {
+  const where: Prisma.DeductionWhereInput = {
     status: true,
     ...(search && {
       OR: [
@@ -40,29 +40,27 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
           .toDate(),
       },
     }),
-    ...(approve_status && { approve_status: approve_status as EPermitStatus }),
   };
 
   const [data, total] = await Promise.all([
-    prisma.insentif.findMany({
+    prisma.deduction.findMany({
       where,
       skip,
       take: limit,
       orderBy: { created_at: "desc" },
       include: {
         User: true,
-        ApproverBy: true,
+        CreatedBy: true,
       },
     }),
-    prisma.insentif.count({ where }),
+    prisma.deduction.count({ where }),
   ]);
 
   return ResponseServer(res, 200, {
-    msg: "GET /insentif",
+    msg: "GET /deduction",
     page,
     limit,
     search,
-    approve_status,
     backdate,
     data,
     total,
@@ -72,17 +70,17 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
 export const POST = async (req: Request, res: Response, next: NextFunction) => {
   let body = req.body;
   try {
-    const { id, User, ApproverBy, ...saved } = body;
+    const { id, User, CreatedBy, ...saved } = body;
     const genId = await generateId();
-    await prisma.insentif.create({ data: { ...saved, id: genId } });
+    await prisma.deduction.create({ data: { ...saved, id: genId } });
 
     return ResponseServer(res, 201, {
-      msg: "Insentif created successfully",
+      msg: "Deduction created successfully",
     });
   } catch (err) {
     console.log(err);
     return ResponseServer(res, 500, {
-      msg: "Error creating insentif",
+      msg: "Error creating deduction",
       error: err instanceof Error ? err.message : String(err),
     });
   }
@@ -91,16 +89,16 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
 export const PUT = async (req: Request, res: Response, next: NextFunction) => {
   let body = req.body;
   try {
-    const { id, User, ApproverBy, ...saved } = body;
-    await prisma.insentif.update({ where: { id }, data: { ...saved } });
+    const { id, User, CreateBy, ...saved } = body;
+    await prisma.deduction.update({ where: { id }, data: { ...saved } });
 
     return ResponseServer(res, 200, {
-      msg: "Insentif updated successfully",
+      msg: "Deduction updated successfully",
     });
   } catch (err) {
     console.log(err);
     return ResponseServer(res, 500, {
-      msg: "Error updating insentif",
+      msg: "Error updating deduction",
       error: err instanceof Error ? err.message : String(err),
     });
   }
@@ -113,25 +111,25 @@ export const DELETE = async (
 ) => {
   let { id } = req.query;
   try {
-    await prisma.insentif.update({
+    await prisma.deduction.update({
       where: { id: id as string },
       data: { status: false },
     });
     return ResponseServer(res, 200, {
-      msg: "Insentif berhasil dihapus",
+      msg: "Potongan berhasil dihapus",
     });
   } catch (err) {
     console.log(err);
     return ResponseServer(res, 500, {
-      msg: "Gagal hapus data insentif. Internal server error!",
+      msg: "Gagal hapus data potongan. Internal server error!",
       error: err instanceof Error ? err.message : String(err),
     });
   }
 };
 
 async function generateId() {
-  const prefix = "INSC";
+  const prefix = "DDC";
   const padLength = 4;
-  const lastRecord = await prisma.insentif.count({});
+  const lastRecord = await prisma.deduction.count({});
   return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
 }

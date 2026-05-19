@@ -103,6 +103,7 @@ export interface IUser {
   positionId: string | null;
   PermitAbsence: IPermitAbsence[] | null;
   Insentif: IInsentif[] | null;
+  Deduction: IDeduction[] | null;
 }
 
 export interface IAbsence {
@@ -184,6 +185,38 @@ export interface IInsentif {
   ApproverBy: IUser | null;
   userId: string;
   approverById: string | null;
+}
+
+export interface IDeduction {
+  id: string;
+  name: string;
+  description: string | null;
+  nominal: number;
+  nominal_type: "RUPIAH" | "PERCENT";
+  file: string | null;
+  status: boolean;
+  created_at: Date;
+  updated_at: Date;
+  User: IUser;
+  CreatedBy: IUser | null;
+  userId: string;
+  createdById: string | null;
+}
+
+export interface IBilling {
+  id: string;
+  value: number;
+  realize_value: number;
+  bill_status: "BAYAR" | "BELUMBAYAR" | "PARTIAL";
+  bill_date: Date;
+  paid_date: Date;
+  name: string | null;
+
+  status: boolean;
+  created_at: Date;
+  updated_at: Date;
+  Debitur: IDebitur;
+  debiturId: string | null;
 }
 
 export interface IGuestBookType {
@@ -435,6 +468,7 @@ export interface IVisit {
   id: string;
   date_plan: Date;
   value: number;
+  realize_value: number;
   summary?: string | null;
   coments?: IComments[];
   date_action?: Date | null;
@@ -462,6 +496,10 @@ export interface IVisit {
 export interface IFileVisit {
   name: string;
   url: string;
+}
+
+export interface IExportData {
+  [key: string]: string | number | null | undefined;
 }
 
 export interface IPTKP {

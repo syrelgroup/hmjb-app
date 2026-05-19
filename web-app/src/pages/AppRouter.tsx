@@ -46,6 +46,8 @@ import PayrollPage from "./absensi/Payroll";
 import { useEffect } from "react";
 import DataPayOffice from "./app/PayOffice";
 import DataInsurance from "./app/Insurance";
+import DeductionPage from "./absensi/Deduction";
+import DataBilling from "./creport/Billing";
 
 function AppRouter() {
   const path = window.location.pathname;
@@ -133,6 +135,7 @@ function AppRouter() {
             element={<UpdateVisit />}
           />
           <Route path="/callreport/visit/:id" element={<DetailVisit />} />
+          <Route path="/callreport/tagihan" element={<DataBilling />} />
 
           {/* ABSENSI */}
           <Route path="/absensi/" element={<DashboardAbsensi />} />
@@ -141,6 +144,7 @@ function AppRouter() {
           <Route path="/absensi/permit" element={<PermitAbsence />} />
           <Route path="/absensi/report" element={<DailyReportAbsence />} />
           <Route path="/absensi/insentif" element={<InsentifPage />} />
+          <Route path="/absensi/deduction" element={<DeductionPage />} />
 
           {/* GUESTBOOK */}
           <Route path="/guestbook/" element={<DashboardGuestBook />} />

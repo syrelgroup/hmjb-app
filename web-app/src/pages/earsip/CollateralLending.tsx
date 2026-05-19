@@ -13,20 +13,21 @@ import {
   DatePicker,
 } from "antd";
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
   CloseOutlined,
+  PlusCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import api from "../../libs/api";
 import type { ICollateralLending, IPageProps } from "../../libs/interface";
 import moment from "moment";
 import { CollapseText } from "../utils/utilComp";
-import { Filter } from "lucide-react";
+import { Download, Filter } from "lucide-react";
 import dayjs from "dayjs";
 import useContext from "../../libs/context";
+import { ExportData } from "../../libs/helper";
 const { RangePicker } = DatePicker;
 
 const CollateralLending = () => {
@@ -40,6 +41,7 @@ const CollateralLending = () => {
     backdate: "",
   });
   const [loading, setLoading] = useState(false);
+  const [viewRecord, setViewRecord] = useState<ICollateralLending | null>(null);
   const { hasAccess } = useContext();
 
   useEffect(() => {
@@ -112,7 +114,7 @@ const CollateralLending = () => {
       },
     },
     {
-      title: "Permohonan",
+      title: "Rekening",
       dataIndex: ["Submission", "Debitur", "nik"],
       key: "nik",
       render(_value, record, _index) {
@@ -126,6 +128,11 @@ const CollateralLending = () => {
           </div>
         );
       },
+    },
+    {
+      title: "Mitra",
+      dataIndex: ["Submission", "Mitra", "name"],
+      key: "mitra",
     },
     {
       title: "Tanggal Rencana",
@@ -184,7 +191,12 @@ const CollateralLending = () => {
       key: "action",
       render: (_, record) => (
         <Space>
-          <Button type="primary" size="small" icon={<EyeOutlined />} />
+          <Button
+            type="primary"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setViewRecord(record)}
+          />
           {hasAccess(window.location.pathname, "update") && (
             <Button
               type="default"
@@ -263,19 +275,45 @@ const CollateralLending = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Peminjaman Jaminan</h1>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() =>
-            (window.location.href = "/app/earsip/collateral_lending/upsert")
-          }
-        >
-          Tambah Peminjaman
-        </Button>
       </div>
 
-      <div className="bg-white p-2 rounded-lg">
-        <div className="flex-1 flex items-center justify-end gap-2 mb-2">
+      <div className="flex flex-wrap gap-2 justify-between bg-white p-2 rounded-lg">
+        <div className="flex gap-2">
+          <Button
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            size="small"
+            onClick={() =>
+              (window.location.href = "/app/earsip/collateral_lending/upsert")
+            }
+          >
+            Tambah
+          </Button>
+          <Button
+            size="small"
+            icon={<Download size={14} />}
+            onClick={() =>
+              ExportData(
+                data.data.map((d) => ({
+                  nasabah: d.Submission.Debitur.fullname,
+                  tipe_produk: d.Submission.Product.ProductType?.name,
+                  produk: d.Submission.Product.name,
+                  mitra: d.Submission.Mitra?.name || "-",
+                  tanggal_pinjam: moment(d.start_at).format("DD/MM/YYYY"),
+                  rencana_pengambalian: moment(d.end_at).format("DD/MM/YYYY"),
+                  status: d.return_at ? "KEMBALI" : "DIPINJAM",
+                  tanggal_kembali_aktual: d.return_at
+                    ? moment(d.return_at).format("DD/MM/YYYY")
+                    : "-",
+                })),
+                "peminjaman_jaminan",
+              )
+            }
+          >
+            Export
+          </Button>
+        </div>
+        <div className="flex items-center justify-end gap-2 mb-2">
           <Input.Search
             type="text"
             placeholder="Cari Nama, NIK, atau ID Debitur..."
@@ -317,10 +355,90 @@ const CollateralLending = () => {
           }}
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
         />
       </div>
+
+      {/* Detail Modal */}
+      <Modal
+        title="Detail Peminjaman Jaminan"
+        open={!!viewRecord}
+        onCancel={() => setViewRecord(null)}
+        footer={null}
+        width={600}
+      >
+        {viewRecord && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-slate-500">Nasabah</p>
+                <p className="font-semibold">
+                  {viewRecord.Submission.Debitur.fullname}
+                </p>
+                <p className="text-xs text-slate-500">
+                  @{viewRecord.Submission.Debitur.nik}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">ID Permohonan</p>
+                <p className="font-semibold">{viewRecord.Submission.id}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-slate-500">Produk</p>
+                <p className="font-semibold">
+                  {viewRecord.Submission.Product.name}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {viewRecord.Submission.Product.ProductType?.name}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Status</p>
+                <Tag
+                  color={viewRecord.return_at ? "green" : "orange"}
+                  variant="solid"
+                >
+                  {viewRecord.return_at ? "KEMBALI" : "DIPINJAM"}
+                </Tag>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-slate-500">Tanggal Pinjam</p>
+                <p className="font-semibold">
+                  {moment(viewRecord.start_at).format("DD-MM-YYYY")}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Rencana Kembali</p>
+                <p className="font-semibold">
+                  {moment(viewRecord.end_at).format("DD-MM-YYYY")}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Kembali Aktual</p>
+                <p className="font-semibold">
+                  {viewRecord.return_at
+                    ? moment(viewRecord.return_at).format("DD-MM-YYYY")
+                    : "-"}
+                </p>
+              </div>
+            </div>
+
+            {viewRecord.description && (
+              <div>
+                <p className="text-sm text-slate-500">Keterangan</p>
+                <p className="text-sm">{viewRecord.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

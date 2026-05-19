@@ -2,8 +2,12 @@ import { Button, Modal, Upload, message as antdMessage } from "antd";
 import { useState, type FormEvent } from "react";
 import { UploadOutlined, DownloadOutlined } from "@ant-design/icons";
 import api from "../../libs/api";
+import type { ISubmission } from "../../libs/interface";
+import { Import, Download } from "lucide-react";
+import { ExportData } from "../../libs/helper";
+import moment from "moment";
 
-export const ExportImport = () => {
+export const ExportImport = ({ data }: { data: ISubmission[] }) => {
   const [open, setOpen] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,8 +66,55 @@ export const ExportImport = () => {
   return (
     <div>
       <div className="flex gap-2 items-center">
-        <Button size="small">Export</Button>
-        <Button size="small" onClick={() => setOpen(true)}>
+        <Button
+          icon={<Download size={14} />}
+          size="small"
+          onClick={() =>
+            ExportData(
+              data
+                ? data.map((d) => ({
+                    cif: d.Debitur.cif,
+                    nik: d.Debitur.nik,
+                    nama: d.Debitur.fullname,
+                    tempat_lahir: d.Debitur.birthplace,
+                    tanggal_lahir: moment(d.Debitur.birthdate).format(
+                      "DD/MM/YYYY",
+                    ),
+                    alamat: d.Debitur.address,
+                    no_telepon: d.Debitur.phone,
+                    email: d.Debitur.email,
+                    jenis_pemohon: d.Debitur.SubmissionType.name,
+                    tanggal_dibuat: moment(d.created_at).format("DD/MM/YYYY"),
+                    tipe_produk: d.Product.ProductType?.name,
+                    produk: d.Product.name,
+                    nilai: d.value,
+                    tenor: d.tenor,
+                    no_rekening: d.account_number,
+                    tujuan_penggunaan: d.purpose,
+                    status_nasabah: d.approve_status,
+                    status_dokumen: d.doc_status,
+                    status_jaminan: d.guarantee_status,
+                    status_flagging: d.flagging_status,
+                    asuransi: d.Insurance?.name,
+                    no_lemari: d.drawer_code,
+                    nama_mitra: d.Mitra?.name,
+                    kantor_bayar: d.PayOffice?.name,
+                    nip_petugas: d.User.nip,
+                    nama_petugas: d.User.fullname,
+                    berkas: d.Files.map((f) => `${f.name}: ${f.url}`).join(","),
+                  }))
+                : [],
+              "rekening",
+            )
+          }
+        >
+          Export
+        </Button>
+        <Button
+          icon={<Import size={14} />}
+          size="small"
+          onClick={() => setOpen(true)}
+        >
           Import
         </Button>
       </div>
@@ -84,7 +135,7 @@ export const ExportImport = () => {
           {/* Judul & Deskripsi */}
           <h2 className="text-2xl font-bold text-gray-800 mb-1">Import Data</h2>
           <p className="text-gray-500 text-sm mb-6">
-            Unggah file Excel atau CSV Anda untuk memperbarui data ke sistem.
+            Unggah file Excel Anda untuk menambah data ke sistem.
           </p>
 
           {/* Banner Download Format Template */}
@@ -119,7 +170,7 @@ export const ExportImport = () => {
               beforeUpload={() => false} // Menahan auto-upload bawaan Antd
               fileList={fileList}
               onChange={handleFileChange}
-              accept=".xlsx, .xls, .csv"
+              accept=".xlsx, .xls"
               maxCount={1}
               className="w-full block"
             >
