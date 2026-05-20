@@ -112,7 +112,7 @@ const UpsertCollateralLending = () => {
               <Select
                 placeholder="Pilih Permohonan"
                 options={submissions.map((sub) => ({
-                  label: `${sub.id} - ${sub.Debitur?.fullname}`,
+                  label: `${sub.id} - ${sub.Debitur?.fullname} (${sub.account_number})`,
                   value: sub.id,
                 }))}
                 optionFilterProp={"label"}
@@ -174,6 +174,7 @@ const UpsertCollateralLending = () => {
             <Form.Item
               label="Tanggal Pengembalian Aktual"
               name="return_at"
+              hidden={!id}
               rules={[
                 {
                   required: false,
@@ -206,7 +207,7 @@ const UpsertCollateralLending = () => {
                 style={{ marginLeft: 8 }}
                 onClick={() => navigate("/app/earsip/collateral_lending")}
               >
-                Batal
+                Kembali
               </Button>
             </Form.Item>
           </Form>

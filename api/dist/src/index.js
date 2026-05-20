@@ -23,6 +23,8 @@ import absenceRoute from "./modules/absence/routes.js";
 import absenceReportRoute from "./modules/absence_report/routes.js";
 import permitAbsenceRoute from "./modules/permit_absence/routes.js";
 import insentifRoute from "./modules/insentif/routes.js";
+import deductionRoute from "./modules/deduction/routes.js";
+import billingRoute from "./modules/billing/routes.js";
 import permitDownloadRoute from "./modules/permit_download/routes.js";
 import permitDeleteRoute from "./modules/permit_delete/routes.js";
 import guestBookRoute from "./modules/guestbook/routes.js";
@@ -30,7 +32,9 @@ import gbookTypeRoute from "./modules/gbook_type/routes.js";
 import fileRoute from "./modules/file/routes.js";
 import logActivitiesRoute from "./modules/log-activities/routes.js";
 import collateralLendingRoute from "./modules/collateral_lending/routes.js";
-import { GET_HOLIDAY, MainDashboard } from "./modules/route.js";
+import { DashboardAbsensi, DashboardCallreport, DashboardEarsip, GET_HOLIDAY, MainDashboard, } from "./modules/route.js";
+import nodeCron from "node-cron";
+import { AlphaDaily } from "./modules/util.js";
 const app = express();
 app.use(cors({
     origin: "*",
@@ -40,9 +44,13 @@ app.use(cors({
     optionsSuccessStatus: 200,
 }));
 // ROOT APP
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ limit: "20mb", extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// Dashboard
 app.use("/maindashboard", middleware, MainDashboard);
+app.use("/callreport", middleware, DashboardCallreport);
+app.use("/absensi", middleware, DashboardAbsensi);
+app.use("/earsip", middleware, DashboardEarsip);
 app.use("/auth", authRoute);
 app.use("/role", middleware, roleRoute);
 app.use("/position", middleware, posRoute);
@@ -65,12 +73,14 @@ app.use("/visit_category", middleware, visitCategoryRoute);
 app.use("/visit_status", middleware, visitStatusRoute);
 app.use("/visit_purpose", middleware, visitPurposeRoute);
 app.use("/visit", middleware, visitRoute);
+app.use("/billing", middleware, billingRoute);
 // ABSENSI
 app.use("/absence_config", middleware, absConfigRoute);
 app.use("/absence", middleware, absenceRoute);
 app.use("/absence_report", middleware, absenceReportRoute);
 app.use("/permit_absence", middleware, permitAbsenceRoute);
 app.use("/insentif", middleware, insentifRoute);
+app.use("/deduction", middleware, deductionRoute);
 // BUKU TAMU
 app.use("/guestbook", middleware, guestBookRoute);
 app.use("/gbook_type", middleware, gbookTypeRoute);
@@ -80,4 +90,10 @@ app.use("/holidays", middleware, GET_HOLIDAY);
 const PORT = process.env.APP_PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server ready at port: ${PORT}`);
+});
+nodeCron.schedule("0 11 * * *", async () => {
+    console.log("Memulai validasi alpha..");
+    await AlphaDaily();
+}, {
+    timezone: "Asia/Jakarta",
 });

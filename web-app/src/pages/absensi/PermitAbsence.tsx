@@ -708,7 +708,11 @@ const ProsesData = ({
             userId: record.userId,
             Absence: {
               ...absence,
-              absence_status: record.type,
+              absence_status: ["TERLAMBAT", "PULANG_CEPAT"].includes(
+                record.type,
+              )
+                ? "HADIR"
+                : record.type,
               ...(user.Absence[0] && {
                 description: user.Absence[0].description?.includes(record.type)
                   ? user.Absence[0].description

@@ -2,9 +2,7 @@ import {} from "express";
 import { ResponseServer } from "../../libs/util.js";
 import prisma from "../../libs/prisma.js";
 import moment from "moment";
-import { exportSubmissions, importSubmissions } from "./importExportService.js";
-import * as XLSX from "xlsx";
-import { parse } from "csv-parse/sync";
+import xlsx from "xlsx";
 export const GET = async (req, res, next) => {
     let { page = 1, limit = 50, search, productTypeId, productId, guarantee_status, doc_status, approve_status, flagging_status, backdate, submissionTypeId, mitraId, payOfficeId, insuranceId, } = req.query;
     page = Number(page);
@@ -278,6 +276,201 @@ export const PATCH = async (req, res, next) => {
         });
     }
 };
+export const IMPORT = async (req, res, next) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Mohon unggah sebuah file!" });
+        }
+        const workbook = xlsx.read(req.file.buffer, {
+            type: "buffer",
+            cellDates: true, // <-- WAJIB TAMBAHKAN INI
+            dateNF: "dd/mm/yyyy",
+        });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = xlsx.utils.sheet_to_json(sheet);
+        for (const data of jsonData) {
+            await prisma.$transaction(async (tx) => {
+                let typeDebt = await tx.submissionType.findFirst({
+                    where: { name: String(data.jenis_pemohon) },
+                });
+                if (!typeDebt) {
+                    const genSubTypeId = await generateSubTypeId();
+                    typeDebt = await tx.submissionType.create({
+                        data: {
+                            id: genSubTypeId,
+                            name: String(data.jenis_pemohon),
+                        },
+                    });
+                }
+                let productType = await tx.productType.findFirst({
+                    where: { name: String(data.tipe_produk) },
+                });
+                if (!productType) {
+                    const pTypeId = await generateProdTypeId();
+                    productType = await tx.productType.create({
+                        data: {
+                            id: pTypeId,
+                            name: String(data.tipe_produk),
+                        },
+                    });
+                }
+                let product = await tx.product.findFirst({
+                    where: { name: String(data.produk) },
+                });
+                if (!product) {
+                    product = await tx.product.create({
+                        data: {
+                            name: String(data.produk),
+                            productTypeId: productType.id,
+                        },
+                    });
+                }
+                let usr = await tx.user.findFirst({
+                    where: {
+                        OR: [
+                            { nip: String(data.nip_petugas) },
+                            { fullname: String(data.nama_petugas) },
+                        ],
+                    },
+                });
+                if (!usr) {
+                    const usdId = await generateUsrId();
+                    usr = await tx.user.create({
+                        data: {
+                            id: usdId,
+                            fullname: String(data.nama_petugas),
+                            nip: String(data.nip_petugas),
+                            username: String(data.nama_petugas).toLowerCase(),
+                            password: String(data.nama_petugas).toLowerCase(),
+                            salary: 0,
+                            absen_method: "BUTTON",
+                            ptkp: "TK/0",
+                            roleId: "RL02",
+                            positionId: "POS02",
+                        },
+                    });
+                }
+                let debt = await tx.debitur.findFirst({
+                    where: {
+                        OR: [
+                            { cif: String(data.cif) },
+                            { nik: String(data.nik) },
+                        ],
+                    },
+                });
+                if (!debt) {
+                    const genDebtId = await generateDebiturId();
+                    debt = await tx.debitur.create({
+                        data: {
+                            id: genDebtId,
+                            cif: String(data.cif),
+                            nik: String(data.nik),
+                            fullname: String(data.nama),
+                            birthplace: String(data.tempat_lahir),
+                            birthdate: moment(data.tanggal_lahir, "DD/MM/YYYY").toDate(),
+                            address: String(data.alamat),
+                            phone: String(data.no_telepon),
+                            email: String(data.email),
+                            submissionTypeId: typeDebt.id,
+                        },
+                    });
+                }
+                let mitra = null;
+                if (data.nama_mitra) {
+                    const mitraFind = await tx.mitra.findFirst({
+                        where: { name: String(data.nama_mitra) },
+                    });
+                    if (mitraFind) {
+                        mitra = mitraFind;
+                    }
+                    else {
+                        const mitId = await generateMitraId();
+                        mitra = await tx.mitra.create({
+                            data: {
+                                id: mitId,
+                                name: String(data.nama_mitra),
+                            },
+                        });
+                    }
+                }
+                let payOffice = null;
+                if (data.kantor_bayar) {
+                    const kabay = await tx.payOffice.findFirst({
+                        where: { name: String(data.kantor_bayar) },
+                    });
+                    if (kabay) {
+                        payOffice = kabay;
+                    }
+                    else {
+                        const kbyId = await generateKbyId();
+                        payOffice = await tx.payOffice.create({
+                            data: {
+                                id: kbyId,
+                                name: String(data.kantor_bayar),
+                            },
+                        });
+                    }
+                }
+                let insur = null;
+                if (data.asuransi) {
+                    const kabay = await tx.insurance.findFirst({
+                        where: { name: String(data.asuransi) },
+                    });
+                    if (kabay) {
+                        insur = kabay;
+                    }
+                    else {
+                        const insId = await generateInscId();
+                        insur = await tx.insurance.create({
+                            data: {
+                                id: insId,
+                                name: String(data.asuransi),
+                            },
+                        });
+                    }
+                }
+                const genId = await generateId();
+                await tx.submission.create({
+                    data: {
+                        id: genId,
+                        debiturId: debt.id,
+                        mitraId: mitra?.id,
+                        insuranceId: insur?.id,
+                        payOfficeId: payOffice?.id,
+                        value: parseInt(data.nilai || "0"),
+                        tenor: parseInt(data.tenor || "0"),
+                        productId: product.id,
+                        userId: usr.id,
+                        createdById: usr.id,
+                        drawer_code: String(data.no_lemari) || "-",
+                        purpose: String(data.tujuan_penggunaan) || "-",
+                        approve_status: data.status_nasabah,
+                        doc_status: data.status_dokumen,
+                        guarantee_status: data.status_jaminan,
+                        flagging_status: data.status_flagging,
+                        account_number: String(data.no_rekening),
+                        created_at: moment(data.tanggal_dibuat, "DD/MM/YYYY").toDate(),
+                    },
+                });
+                return true;
+            }, {
+                // Opsi untuk memperpanjang napas transaksi (Satuan Milliseconds)
+                timeout: 60000 * 10, // 60 Detik (Sangat cukup untuk ratusan data baris)
+            });
+        }
+        res.status(200).json({
+            message: "Data berhasil diimport!",
+            total_data: jsonData.length,
+        });
+    }
+    catch (err) {
+        console.log(err);
+        return ResponseServer(res, 500, {
+            msg: err.message || "Internal Server Error",
+        });
+    }
+};
 async function generateId() {
     const prefix = "SID";
     const padLength = 4;
@@ -290,258 +483,39 @@ async function generateDebiturId() {
     const lastRecord = await prisma.debitur.count({});
     return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
 }
-export const EXPORT = async (req, res, next) => {
-    try {
-        const { format = "csv", productTypeId, productId, mitraId, payOfficeId, insuranceId } = req.query;
-        const data = await exportSubmissions({
-            productTypeId,
-            productId,
-            mitraId,
-            payOfficeId,
-            insuranceId,
-        });
-        // Transform data for export
-        const exportData = data.map((item) => ({
-            id: item.id,
-            drawer_code: item.drawer_code,
-            debitur_nik: item.Debitur.nik,
-            debitur_cif: item.Debitur.cif,
-            debitur_name: item.Debitur.fullname,
-            debitur_birthplace: item.Debitur.birthplace,
-            debitur_birthdate: item.Debitur.birthdate?.toISOString().split("T")[0],
-            debitur_address: item.Debitur.address,
-            debitur_phone: item.Debitur.phone,
-            debitur_email: item.Debitur.email,
-            submission_type_name: item.Debitur.SubmissionType.name,
-            mitra_name: item.Mitra?.name || "",
-            mitra_code: item.Mitra?.code || "",
-            mitra_phone: item.Mitra?.phone || "",
-            mitra_email: item.Mitra?.email || "",
-            mitra_address: item.Mitra?.address || "",
-            mitra_pic: item.Mitra?.pic || "",
-            mitra_no_contract: item.Mitra?.no_contract || "",
-            mitra_drawer_code: item.Mitra?.drawer_code || "",
-            mitra_description: item.Mitra?.description || "",
-            product_name: item.Product.name,
-            product_type_name: item.Product.ProductType.name,
-            payoffice_name: item.PayOffice?.name || "",
-            insurance_name: item.Insurance?.name || "",
-            value: item.value,
-            tenor: item.tenor,
-            account_number: item.account_number,
-            purpose: item.purpose,
-            created_at: item.created_at.toISOString(),
-        }));
-        if (format === "xlsx") {
-            const worksheet = XLSX.utils.json_to_sheet(exportData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Submissions");
-            const fileName = `submissions_${moment().format("YYYY-MM-DD_HHmmss")}.xlsx`;
-            res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-            res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
-            return res.end(buffer);
-        }
-        else {
-            // CSV format
-            const headers = Object.keys(exportData[0] || {});
-            const csvContent = [
-                headers.join(","),
-                ...exportData.map((row) => headers
-                    .map((header) => {
-                    const value = row[header];
-                    // Escape quotes and wrap in quotes if contains comma
-                    const stringValue = String(value || "");
-                    if (stringValue.includes(",") || stringValue.includes('"')) {
-                        return `"${stringValue.replace(/"/g, '""')}"`;
-                    }
-                    return stringValue;
-                })
-                    .join(",")),
-            ].join("\n");
-            const fileName = `submissions_${moment().format("YYYY-MM-DD_HHmmss")}.csv`;
-            res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-            res.setHeader("Content-Type", "text/csv");
-            return res.end(csvContent);
-        }
-    }
-    catch (err) {
-        console.log(err);
-        return ResponseServer(res, 500, {
-            msg: err.message || "Internal Server Error",
-        });
-    }
-};
-export const IMPORT = async (req, res, next) => {
-    try {
-        const file = req.file;
-        if (!file) {
-            console.error("File not found in request");
-            return ResponseServer(res, 400, { msg: "File tidak ditemukan" });
-        }
-        let data = [];
-        // Parse file berdasarkan extension
-        try {
-            if (file.mimetype === "text/csv" || file.originalname.endsWith(".csv")) {
-                data = parse(file.buffer.toString(), {
-                    columns: true,
-                    skip_empty_lines: true,
-                });
-            }
-            else if (file.mimetype ===
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-                file.originalname.endsWith(".xlsx")) {
-                const workbook = XLSX.read(file.buffer);
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                data = XLSX.utils.sheet_to_json(worksheet);
-            }
-            else if (file.mimetype === "application/vnd.ms-excel" || file.originalname.endsWith(".xls")) {
-                const workbook = XLSX.read(file.buffer);
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                data = XLSX.utils.sheet_to_json(worksheet);
-            }
-            else {
-                console.error("Unsupported file type:", file.mimetype, file.originalname);
-                return ResponseServer(res, 400, {
-                    msg: "Format file harus CSV atau XLSX (diterima: " + file.mimetype + ")",
-                });
-            }
-        }
-        catch (parseErr) {
-            console.error("File parsing error:", parseErr);
-            return ResponseServer(res, 400, {
-                msg: "Gagal membaca file. Pastikan format file sudah benar. Error: " + parseErr.message,
-            });
-        }
-        // Validate required fields
-        const requiredFields = [
-            "drawer_code",
-            "debitur_nik",
-            "debitur_name",
-            "submission_type_name",
-            "product_name",
-            "product_type_name",
-            "value",
-            "tenor",
-        ];
-        // Check if data is empty
-        if (data.length === 0) {
-            console.error("No data rows found in file");
-            return ResponseServer(res, 400, {
-                msg: "File tidak berisi data atau format sheet tidak sesuai",
-            });
-        }
-        const invalidRows = [];
-        const missingFieldsMap = new Map();
-        data.forEach((row, index) => {
-            const missingFields = requiredFields.filter((field) => !row[field]);
-            if (missingFields.length > 0) {
-                invalidRows.push(index + 1);
-                missingFieldsMap.set(index + 1, missingFields);
-            }
-        });
-        if (invalidRows.length > 0) {
-            const detailErrors = Array.from(missingFieldsMap.entries())
-                .slice(0, 5)
-                .map(([row, fields]) => `Baris ${row}: ${fields.join(", ")}`)
-                .join("; ");
-            const msg = `Data tidak valid pada baris: ${invalidRows.slice(0, 10).join(", ")}${invalidRows.length > 10 ? "... (total " + invalidRows.length + " baris)" : ""}. Detail: ${detailErrors}`;
-            console.error(msg);
-            return ResponseServer(res, 400, { msg });
-        }
-        // Convert string to number
-        data = data.map((row) => ({
-            ...row,
-            value: Number(row.value),
-            tenor: Number(row.tenor),
-        }));
-        // Import data
-        const result = await importSubmissions(data, req.user?.id || "");
-        return ResponseServer(res, 200, {
-            msg: `Import selesai. ${result.success} data berhasil, ${result.failed} data gagal.`,
-            data: result,
-        });
-    }
-    catch (err) {
-        console.log(err);
-        return ResponseServer(res, 500, {
-            msg: err.message || "Internal Server Error",
-        });
-    }
-};
-export const TEMPLATE = async (req, res, next) => {
-    try {
-        const { format = "xlsx" } = req.query;
-        // Sample data for template
-        const templateData = [
-            {
-                id: "SID0001",
-                drawer_code: "DRWR001",
-                debitur_nik: "3217012345678910",
-                debitur_cif: "CIF001",
-                debitur_name: "Budi Santoso",
-                debitur_birthplace: "Jakarta",
-                debitur_birthdate: "1990-01-15",
-                debitur_address: "Jl. Merdeka No. 10, Jakarta",
-                debitur_phone: "081234567890",
-                debitur_email: "budi@email.com",
-                submission_type_name: "Nasabah",
-                mitra_name: "PT. Mitra Jaya",
-                mitra_code: "MTR001",
-                mitra_phone: "081987654321",
-                mitra_email: "mitra@email.com",
-                mitra_address: "Jl. Sudirman, Jakarta",
-                mitra_pic: "Budi Wijaya",
-                mitra_no_contract: "No. 123",
-                mitra_drawer_code: "DRWR-MTR001",
-                mitra_description: "Mitra terpercaya",
-                product_name: "Kredit Usaha",
-                product_type_name: "Kredit Modal",
-                payoffice_name: "Kantor Pusat",
-                insurance_name: "Asuransi Nasional",
-                value: 50000000,
-                tenor: 12,
-                account_number: "1234567890",
-                purpose: "Modal Usaha",
-                created_at: new Date().toISOString(),
-            },
-        ];
-        if (format === "xlsx") {
-            const worksheet = XLSX.utils.json_to_sheet(templateData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Submissions");
-            const fileName = `template_submission_${moment().format("YYYY-MM-DD")}.xlsx`;
-            res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-            res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
-            return res.end(buffer);
-        }
-        else {
-            // CSV format
-            const headers = Object.keys(templateData[0] || {});
-            const csvContent = [
-                headers.join(","),
-                ...templateData.map((row) => headers
-                    .map((header) => {
-                    const value = row[header];
-                    const stringValue = String(value || "");
-                    if (stringValue.includes(",") || stringValue.includes('"')) {
-                        return `"${stringValue.replace(/"/g, '""')}"`;
-                    }
-                    return stringValue;
-                })
-                    .join(",")),
-            ].join("\n");
-            const fileName = `template_submission_${moment().format("YYYY-MM-DD")}.csv`;
-            res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-            res.setHeader("Content-Type", "text/csv");
-            return res.end(csvContent);
-        }
-    }
-    catch (err) {
-        console.log(err);
-        return ResponseServer(res, 500, {
-            msg: err.message || "Internal Server Error",
-        });
-    }
-};
+async function generateSubTypeId() {
+    const prefix = "STYPE";
+    const padLength = 2;
+    const lastRecord = await prisma.submissionType.count({});
+    return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+async function generateProdTypeId() {
+    const prefix = "PTYPE";
+    const padLength = 2;
+    const lastRecord = await prisma.productType.count({});
+    return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+async function generateUsrId() {
+    const prefix = "USR";
+    const padLength = 3;
+    const lastRecord = await prisma.user.count({});
+    return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+async function generateMitraId() {
+    const prefix = "MITRA";
+    const padLength = 2;
+    const lastRecord = await prisma.mitra.count();
+    return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+async function generateKbyId() {
+    const prefix = "PAYOF";
+    const padLength = 2;
+    const lastRecord = await prisma.payOffice.count();
+    return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}
+async function generateInscId() {
+    const prefix = "INSC";
+    const padLength = 2;
+    const lastRecord = await prisma.insurance.count();
+    return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
+}

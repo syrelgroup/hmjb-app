@@ -1,25 +1,17 @@
 import {
-  Users,
   TrendingUp,
-  Phone,
-  ArrowUpRight,
-  ArrowDownRight,
   CheckCircle,
-  Clock,
-  AlertCircle,
   Calendar,
-  CheckSquare,
   DollarSign,
-  FileText,
+  Activity,
+  Target,
+  Bookmark,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Spin, message } from "antd";
 import api from "../../libs/api";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -32,830 +24,672 @@ import {
 } from "recharts";
 import moment from "moment";
 import { IDRFormat } from "../utils/utilForm";
-
-interface IVisit {
-  id: string;
-  date_plan: string;
-  date_action?: string;
-  VisitStatus?: { id: string; name: string };
-  VisitCategory?: { id: string; name: string };
-  VisitPurpose?: { id: string; name: string };
-  Debitur?: { fullname: string };
-  created_at: string;
-}
+import type { IVisit } from "../../libs/interface";
 
 interface IBilling {
-  id: string;
+  bill_status: string;
   value: number;
   realize_value: number;
-  bill_status: "BAYAR" | "BELUMBAYAR" | "PARTIAL";
-  bill_date: string;
-  paid_date?: string;
-  name: string | null;
-  Debitur?: { fullname: string };
 }
 
-const DashboardCallReport = () => {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    today: 0,
-    positivePercentage: 0,
-    successCount: 0,
-    pendingCount: 0,
-    failedCount: 0,
-    plannedCount: 0,
-    completedCount: 0,
-  });
-  const [billingStats, setBillingStats] = useState({
-    totalBilling: 0,
-    paidBilling: 0,
-    unpaidBilling: 0,
-    partialBilling: 0,
-    totalNominal: 0,
-    paidNominal: 0,
-    unpaidNominal: 0,
-    paidPercentage: 0,
-  });
-  const [activities, setActivities] = useState<IVisit[]>([]);
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [statusBreakdown, setStatusBreakdown] = useState<any[]>([]);
-  const [purposeBreakdown, setPurposeBreakdown] = useState<any[]>([]);
-  const [categoryBreakdown, setCategoryBreakdown] = useState<any[]>([]);
-  const [billingBreakdown, setBillingBreakdown] = useState<any[]>([]);
+const STATUS_COLORS: Record<string, string> = {
+  "Sudah Bayar": "#10b981",
+  Partial: "#f59e0b",
+  "Belum Bayar": "#ef4444",
+};
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+// Palet warna variatif untuk segmentasi Pie Chart Distribusi Kunjungan
+const PIE_COLORS = [
+  "#0ea5e9",
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
+  "#f43f5e",
+  "#eab308",
+  "#10b981",
+];
+
+export default function DashboardCallReport() {
+  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState({
+    totalVisitRealized: 0,
+    totalVisitPlan: 0,
+
+    // Nominal Piutang Global (Value)
+    billingPaidValue: 0,
+    billingPartialValue: 0,
+    billingUnpaidValue: 0,
+
+    // Nominal Uang Masuk Global (Realize Value)
+    billingPaidRealize: 0,
+    billingPartialRealize: 0,
+    billingUnpaidRealize: 0,
+
+    // Counter Box Global
+    billingPaidCount: 0,
+    billingPartialCount: 0,
+    billingUnpaidCount: 0,
+  });
+
+  const [billingBreakdown, setBillingBreakdown] = useState<any[]>([]);
+  const [trendData, setTrendData] = useState<any[]>([]);
+
+  // State untuk Pie Chart Distribusi + Detail Finansialnya
+  const [visitStatusDist, setVisitStatusDist] = useState<any[]>([]);
+  const [visitPurposeDist, setVisitPurposeDist] = useState<any[]>([]);
+  const [visitCategoryDist, setVisitCategoryDist] = useState<any[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch visit dan billing data secara parallel
-      const [visitRes, billingRes] = await Promise.all([
-        api.request({
-          url: "/visit",
-          method: "GET",
-          params: { limit: 10000 },
-        }),
-        api.request({
-          url: "/billing",
-          method: "GET",
-          params: { limit: 10000 },
-        }),
-      ]);
+      const res = await api.get("/callreport");
 
-      // Process Visit Data
-      if (visitRes?.data) {
-        const data = visitRes.data.data || [];
-        const total = visitRes.data.total || 0;
+      if (res?.data) {
+        // Ambil data mentah bawaan API: { visit, visit_plan, tagihan }
+        const { visit = [], visit_plan = [], tagihan = [] } = res.data;
 
-        // Calculate today's visits
-        const today = new Date().toISOString().split("T")[0];
-        const todayVisits = data.filter(
-          (v: IVisit) => v.date_action && v.date_action.split("T")[0] === today,
-        ).length;
+        // ==========================================
+        // 1. KALKULASI DATA BILLING UTAMA
+        // ==========================================
+        let paidValue = 0,
+          paidRealize = 0,
+          paidCount = 0;
+        let partialValue = 0,
+          partialRealize = 0,
+          partialCount = 0;
+        let unpaidValue = 0,
+          unpaidRealize = 0,
+          unpaidCount = 0;
 
-        // Calculate success/pending/failed
-        const success = data.filter(
-          (v: IVisit) =>
-            v.VisitStatus?.name?.toLowerCase().includes("berhasil") ||
-            v.VisitStatus?.name?.toLowerCase().includes("positif"),
-        ).length;
-        const pending = data.filter(
-          (v: IVisit) =>
-            v.VisitStatus?.name?.toLowerCase().includes("pending") ||
-            v.VisitStatus?.name?.toLowerCase().includes("rencana"),
-        ).length;
-        const failed = total - success - pending;
-
-        // Calculate planned vs completed visits
-        const planned = data.filter((v: IVisit) => !v.date_action).length;
-        const completed = data.filter((v: IVisit) => v.date_action).length;
-
-        const positivePercentage =
-          total > 0 ? Math.round((success / total) * 100) : 0;
-
-        setStats({
-          total: total,
-          today: todayVisits,
-          positivePercentage: positivePercentage,
-          successCount: success,
-          pendingCount: pending,
-          failedCount: failed,
-          plannedCount: planned,
-          completedCount: completed,
-        });
-
-        // Process chart data (7 hari terakhir)
-        const chartDataMap = new Map();
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          const dateStr = date.toISOString().split("T")[0];
-          chartDataMap.set(dateStr, {
-            date: moment(dateStr).format("DD-MM"),
-            kunjungan: 0,
-            berhasil: 0,
-          });
-        }
-
-        data.forEach((v: IVisit) => {
-          if (v.date_action) {
-            const dateStr = v.date_action.split("T")[0];
-            const entry = chartDataMap.get(dateStr);
-            if (entry) {
-              entry.kunjungan += 1;
-              if (
-                v.VisitStatus?.name?.toLowerCase().includes("berhasil") ||
-                v.VisitStatus?.name?.toLowerCase().includes("positif")
-              ) {
-                entry.berhasil += 1;
-              }
-            }
+        tagihan.forEach((b: IBilling) => {
+          if (b.bill_status === "BAYAR") {
+            paidValue += b.value || 0;
+            paidRealize += b.realize_value || b.value || 0;
+            paidCount++;
+          } else if (b.bill_status === "PARTIAL") {
+            partialValue += b.value || 0;
+            partialRealize += b.realize_value || 0;
+            partialCount++;
+          } else if (b.bill_status === "BELUMBAYAR") {
+            unpaidValue += b.value || 0;
+            unpaidRealize += 0;
+            unpaidCount++;
           }
         });
 
-        const chartArray = Array.from(chartDataMap.values());
-        setChartData(chartArray);
+        setSummary({
+          totalVisitRealized: visit.length,
+          totalVisitPlan: visit_plan.length,
 
-        // Process status breakdown
-        const statusMap = new Map();
-        data.forEach((v: IVisit) => {
-          const status = v.VisitStatus?.name || "Tidak Diketahui";
-          statusMap.set(status, (statusMap.get(status) || 0) + 1);
+          billingPaidValue: paidValue,
+          billingPartialValue: partialValue,
+          billingUnpaidValue: unpaidValue,
+
+          billingPaidRealize: paidRealize,
+          billingPartialRealize: partialRealize,
+          billingUnpaidRealize: unpaidRealize, // Sudah diperbaiki dari typo sebelumnya (unpaidUnize)
+
+          billingPaidCount: paidCount,
+          billingPartialCount: partialCount,
+          billingUnpaidCount: unpaidCount,
         });
 
-        const statusArray = Array.from(statusMap.entries())
-          .map(([name, value]) => ({
-            name,
-            value,
-          }))
-          .sort((a, b) => b.value - a.value);
+        setBillingBreakdown([
+          { name: "Sudah Bayar", value: paidCount },
+          { name: "Partial", value: partialCount },
+          { name: "Belum Bayar", value: unpaidCount },
+        ]);
 
-        setStatusBreakdown(statusArray);
+        // ==========================================
+        // 2. OLAH TREN KUNJUNGAN 7 HARI TERAKHIR
+        // ==========================================
+        const last7Days = Array.from({ length: 7 })
+          .map((_, i) => moment().subtract(i, "days").format("YYYY-MM-DD"))
+          .reverse();
 
-        // Process purpose breakdown
-        const purposeMap = new Map();
-        data.forEach((v: IVisit) => {
-          const purpose = v.VisitPurpose?.name || "Tidak Diketahui";
-          purposeMap.set(purpose, (purposeMap.get(purpose) || 0) + 1);
+        const dailyMap: Record<string, { Realisasi: number; Rencana: number }> =
+          {};
+        last7Days.forEach((date) => {
+          dailyMap[date] = { Realisasi: 0, Rencana: 0 };
         });
 
-        const purposeArray = Array.from(purposeMap.entries())
-          .map(([name, value]) => ({
-            name,
-            value,
-          }))
-          .sort((a, b) => b.value - a.value);
-
-        setPurposeBreakdown(purposeArray);
-
-        // Process category breakdown
-        const categoryMap = new Map();
-        data.forEach((v: IVisit) => {
-          const category = v.VisitCategory?.name || "Tidak Diketahui";
-          categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+        visit.forEach((v: IVisit) => {
+          if (v.date_action) {
+            const dayStr = moment(v.date_action).format("YYYY-MM-DD");
+            if (dailyMap[dayStr]) dailyMap[dayStr].Realisasi++;
+          }
         });
 
-        const categoryArray = Array.from(categoryMap.entries())
-          .map(([name, value]) => ({
-            name,
-            value,
-          }))
-          .sort((a, b) => b.value - a.value);
+        visit_plan.forEach((vp: IVisit) => {
+          if (vp.date_plan) {
+            const dayStr = moment(vp.date_plan).format("YYYY-MM-DD");
+            if (dailyMap[dayStr]) dailyMap[dayStr].Rencana++;
+          }
+        });
 
-        setCategoryBreakdown(categoryArray);
-
-        // Set recent activities
-        setActivities(data.slice(0, 5));
-      }
-
-      // Process Billing Data
-      if (billingRes?.data) {
-        const billingData = billingRes.data.data || [];
-        const totalBilling = billingData.length;
-
-        const paidCount = billingData.filter(
-          (b: IBilling) => b.bill_status === "BAYAR",
-        ).length;
-        const unpaidCount = billingData.filter(
-          (b: IBilling) => b.bill_status === "BELUMBAYAR",
-        ).length;
-        const partialCount = billingData.filter(
-          (b: IBilling) => b.bill_status === "PARTIAL",
-        ).length;
-
-        const totalNominal = billingData.reduce(
-          (sum: number, b: IBilling) => sum + (b.value || 0),
-          0,
+        setTrendData(
+          last7Days.map((date) => ({
+            date: moment(date).format("DD MMM"),
+            "Kunjungan Sukses": dailyMap[date].Realisasi,
+            "Rencana Kunjungan": dailyMap[date].Rencana,
+          })),
         );
-        const paidNominal = billingData.reduce(
-          (sum: number, b: IBilling) =>
-            sum + (b.bill_status === "BAYAR" ? b.realize_value || 0 : 0),
-          0,
+
+        // ==========================================
+        // 3. GROUPING DATA VISIT + FINANSIAL (AMMAN DARI TS OVERWRITE)
+        // ==========================================
+        interface IDistItem {
+          count: number;
+          billingValue: number; // Ubah nama agar tidak bentrok dengan 'value' Recharts
+          realizeValue: number;
+        }
+
+        const statusMap: Record<string, IDistItem> = {};
+        const purposeMap: Record<string, IDistItem> = {};
+        const categoryMap: Record<string, IDistItem> = {};
+
+        const allVisits = [...visit, ...visit_plan];
+
+        allVisits.forEach((v: any) => {
+          const statusName = v.VisitStatus?.name || "Tanpa Status";
+          const purposeName = v.VisitPurpose?.name || "Tanpa Tujuan";
+          const categoryName = v.VisitCategory?.name || "Tanpa Kategori";
+
+          // Mengambil nominal dari data billing yang menempel di objek visit jika ada
+          const itemValue = v.value || 0;
+          const itemRealize = v.realize_value || 0;
+
+          if (!statusMap[statusName])
+            statusMap[statusName] = {
+              count: 0,
+              billingValue: 0,
+              realizeValue: 0,
+            };
+          statusMap[statusName].count += 1;
+          statusMap[statusName].billingValue += itemValue;
+          statusMap[statusName].realizeValue += itemRealize;
+
+          if (!purposeMap[purposeName])
+            purposeMap[purposeName] = {
+              count: 0,
+              billingValue: 0,
+              realizeValue: 0,
+            };
+          purposeMap[purposeName].count += 1;
+          purposeMap[purposeName].billingValue += itemValue;
+          purposeMap[purposeName].realizeValue += itemRealize;
+
+          if (!categoryMap[categoryName])
+            categoryMap[categoryName] = {
+              count: 0,
+              billingValue: 0,
+              realizeValue: 0,
+            };
+          categoryMap[categoryName].count += 1;
+          categoryMap[categoryName].billingValue += itemValue;
+          categoryMap[categoryName].realizeValue += itemRealize;
+        });
+
+        // Mapping ke array untuk Recharts Pie (Aman tanpa overwrite linting ts)
+        setVisitStatusDist(
+          Object.entries(statusMap).map(([name, data]) => ({
+            name,
+            ...data,
+            value: data.count, // 'value' ditempatkan paling akhir/terpisah untuk porsi besar busur PieChart
+          })),
         );
-        const unpaidNominal = totalNominal - paidNominal;
 
-        const paidPercentage =
-          totalNominal > 0 ? Math.round((paidNominal / totalNominal) * 100) : 0;
+        setVisitPurposeDist(
+          Object.entries(purposeMap).map(([name, data]) => ({
+            name,
+            ...data,
+            value: data.count,
+          })),
+        );
 
-        setBillingStats({
-          totalBilling,
-          paidBilling: paidCount,
-          unpaidBilling: unpaidCount,
-          partialBilling: partialCount,
-          totalNominal,
-          paidNominal,
-          unpaidNominal,
-          paidPercentage,
-        });
-
-        // Process billing status breakdown
-        const billingMap = new Map();
-        billingData.forEach((b: IBilling) => {
-          const status = b.bill_status;
-          billingMap.set(status, (billingMap.get(status) || 0) + 1);
-        });
-
-        const billingArray = Array.from(billingMap.entries())
-          .map(([name, value]) => ({
-            name:
-              name === "BAYAR"
-                ? "Sudah Bayar"
-                : name === "BELUMBAYAR"
-                  ? "Belum Bayar"
-                  : "Partial",
-            value,
-          }))
-          .sort((a, b) => b.value - a.value);
-
-        setBillingBreakdown(billingArray);
+        setVisitCategoryDist(
+          Object.entries(categoryMap).map(([name, data]) => ({
+            name,
+            ...data,
+            value: data.count,
+          })),
+        );
       }
     } catch (error) {
-      message.error("Gagal mengambil data");
+      console.error("Gagal memuat data dashboard:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const COLORS = ["#0ea5e9", "#f97316", "#ef4444", "#8b5cf6", "#ec4899"];
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const statsDisplay = [
-    {
-      label: "Total Kunjungan",
-      value: stats.total.toString(),
-      icon: <Phone size={24} />,
-      trend: "+15.3%",
-      trendUp: true,
-      color: "bg-blue-500",
-    },
-    {
-      label: "Kunjungan Hari Ini",
-      value: stats.today.toString(),
-      icon: <TrendingUp size={24} />,
-      trend: "+5.2%",
-      trendUp: true,
-      color: "bg-orange-500",
-    },
-    {
-      label: "Rata-rata Hasil Positif",
-      value: `${stats.positivePercentage}%`,
-      icon: <Users size={24} />,
-      trend: "+3.8%",
-      trendUp: true,
-      color: "bg-emerald-500",
-    },
-  ];
-
-  const detailedStats = [
-    {
-      label: "Berhasil",
-      value: stats.successCount,
-      icon: <CheckCircle size={20} />,
-      color: "bg-green-50",
-      textColor: "text-green-600",
-    },
-    {
-      label: "Pending",
-      value: stats.pendingCount,
-      icon: <Clock size={20} />,
-      color: "bg-yellow-50",
-      textColor: "text-yellow-600",
-    },
-    {
-      label: "Gagal",
-      value: stats.failedCount,
-      icon: <AlertCircle size={20} />,
-      color: "bg-red-50",
-      textColor: "text-red-600",
-    },
-    {
-      label: "Kunjungan Rencana",
-      value: stats.plannedCount,
-      icon: <Calendar size={20} />,
-      color: "bg-blue-50",
-      textColor: "text-blue-600",
-    },
-    {
-      label: "Kunjungan Sudah Dilakukan",
-      value: stats.completedCount,
-      icon: <CheckSquare size={20} />,
-      color: "bg-purple-50",
-      textColor: "text-purple-600",
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="p-6 h-96 flex flex-col items-center justify-center text-slate-500 gap-2">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-medium">Memuat data analisis dashboard...</p>
+      </div>
+    );
+  }
 
   return (
-    <Spin spinning={loading}>
-      <div className="space-y-8">
-        {/* --- WELCOME SECTION --- */}
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Selamat Pagi, Syihabudin! 👋
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Berikut adalah ringkasan aktivitas Call Report Anda hari ini.
-          </p>
-        </div>
-
-        {/* --- MAIN STATS CARDS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {statsDisplay.map((stat, index) => (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-start">
-                <div
-                  className={`${stat.color} p-3 rounded-xl text-white shadow-lg`}
-                >
-                  {stat.icon}
-                </div>
-                <div
-                  className={`flex items-center gap-1 text-xs font-bold ${stat.trendUp ? "text-emerald-600" : "text-red-500"}`}
-                >
-                  {stat.trend}
-                  {stat.trendUp ? (
-                    <ArrowUpRight size={14} />
-                  ) : (
-                    <ArrowDownRight size={14} />
-                  )}
-                </div>
-              </div>
-              <div className="mt-4">
-                <p className="text-slate-500 text-sm font-medium">
-                  {stat.label}
-                </p>
-                <h3 className="text-2xl font-black text-slate-800 mt-1">
-                  {stat.value}
-                </h3>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* --- DETAILED STATS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {detailedStats.map((stat, index) => (
-            <div
-              key={index}
-              className={`${stat.color} p-4 rounded-xl border border-slate-200`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`${stat.textColor}`}>{stat.icon}</div>
-                <div className="flex-1">
-                  <p className="text-xs text-slate-600">{stat.label}</p>
-                  <p className={`text-2xl font-bold ${stat.textColor}`}>
-                    {stat.value}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* --- BILLING STATS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-200">
-            <div className="flex items-center gap-3">
-              <div className="text-emerald-600">
-                <FileText size={24} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-600">Total Tagihan</p>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {billingStats.totalBilling}
-                </p>
-              </div>
-            </div>
+    <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen">
+      {/* --- ROW 1: KUMPULAN MINI METRICS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Rencana Kunjungan
+            </p>
+            <h3 className="text-3xl font-bold text-slate-800">
+              {summary.totalVisitPlan}{" "}
+              <span className="text-sm font-normal text-slate-400">Agenda</span>
+            </h3>
           </div>
-
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-            <div className="flex items-center gap-3">
-              <div className="text-green-600">
-                <CheckCircle size={24} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-600">Sudah Bayar</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {billingStats.paidBilling}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-xl border border-red-200">
-            <div className="flex items-center gap-3">
-              <div className="text-red-600">
-                <AlertCircle size={24} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-600">Belum Bayar</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {billingStats.unpaidBilling}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-4 rounded-xl border border-yellow-200">
-            <div className="flex items-center gap-3">
-              <div className="text-yellow-600">
-                <Clock size={24} />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-600">Partial</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {billingStats.partialBilling}
-                </p>
-              </div>
-            </div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <Calendar className="w-6 h-6" />
           </div>
         </div>
 
-        {/* --- BILLING NOMINAL STATS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-500 text-sm font-medium">
-                  Total Nominal Tagihan
-                </p>
-                <h3 className="text-2xl font-black text-slate-800 mt-2">
-                  {IDRFormat(billingStats.totalNominal)}
-                </h3>
-              </div>
-              <div className="bg-blue-500 p-3 rounded-xl text-white shadow-lg">
-                <DollarSign size={24} />
-              </div>
-            </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Kunjungan Sukses
+            </p>
+            <h3 className="text-3xl font-bold text-emerald-600">
+              {summary.totalVisitRealized}{" "}
+              <span className="text-sm font-normal text-slate-400">Lokasi</span>
+            </h3>
           </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-500 text-sm font-medium">
-                  Nominal Terbayar
-                </p>
-                <h3 className="text-2xl font-black text-emerald-600 mt-2">
-                  {IDRFormat(billingStats.paidNominal)}
-                </h3>
-              </div>
-              <div className="bg-emerald-500 p-3 rounded-xl text-white shadow-lg">
-                <CheckCircle size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-500 text-sm font-medium">
-                  Persentase Terbayar
-                </p>
-                <h3 className="text-2xl font-black text-blue-600 mt-2">
-                  {billingStats.paidPercentage}%
-                </h3>
-              </div>
-              <div className="bg-blue-500 p-3 rounded-xl text-white shadow-lg">
-                <TrendingUp size={24} />
-              </div>
-            </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <CheckCircle className="w-6 h-6" />
           </div>
         </div>
 
-        {/* --- CHARTS SECTION --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* --- LINE CHART (Trend) --- */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="mb-6">
-              <h3 className="font-bold text-lg text-slate-800">
-                Tren Kunjungan 7 Hari Terakhir
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Total Dana Tertagih
+            </p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {IDRFormat(
+                summary.billingPaidRealize + summary.billingPartialRealize,
+              )}
+            </h3>
+          </div>
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <DollarSign className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* --- ROW 2: TREN AKTIVITAS & RINGKASAN INVOICE GLOBAL --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">
+                Tren Aktivitas Lapangan
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Perbandingan total kunjungan dan hasil berhasil
+              <p className="text-xs text-slate-400">
+                Perbandingan agenda vs realisasi kunjungan 7 hari terakhir
               </p>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid #475569",
-                    borderRadius: "8px",
-                  }}
-                  labelStyle={{ color: "#f1f5f9" }}
+            <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="w-full h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={trendData}
+                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  fontSize={12}
+                  tickLine={false}
                 />
-                <Legend />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} />
+                <Tooltip />
+                <Legend
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: "13px", paddingTop: "15px" }}
+                />
                 <Line
                   type="monotone"
-                  dataKey="kunjungan"
-                  stroke="#0ea5e9"
-                  strokeWidth={2}
-                  dot={{ fill: "#0ea5e9", r: 4 }}
-                  name="Total Kunjungan"
+                  dataKey="Rencana Kunjungan"
+                  stroke="#3b82f6"
+                  strokeWidth={2.5}
+                  activeDot={{ r: 6 }}
                 />
                 <Line
                   type="monotone"
-                  dataKey="berhasil"
+                  dataKey="Kunjungan Sukses"
                   stroke="#10b981"
-                  strokeWidth={2}
-                  dot={{ fill: "#10b981", r: 4 }}
-                  name="Berhasil"
+                  strokeWidth={2.5}
+                  activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
-
-          {/* --- PIE CHART (Status) --- */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="mb-6">
-              <h3 className="font-bold text-lg text-slate-800">
-                Distribusi Status
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Breakdown kunjungan per status
-              </p>
-            </div>
-            {statusBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={statusBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent = 0 }) =>
-                      `${name}: ${((percent as number) * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {statusBreakdown.map((_entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-64 bg-slate-50 rounded-xl flex items-center justify-center">
-                <p className="text-slate-400 text-sm">Tidak ada data</p>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* --- BAR CHART (Daily Comparison) --- */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="mb-6">
-            <h3 className="font-bold text-lg text-slate-800">
-              Perbandingan Kunjungan Harian
+        {/* Card Ringkasan Status Tagihan */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">
+              Ringkasan Status Tagihan
             </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Total kunjungan vs hasil berhasil per hari
+            <p className="text-xs text-slate-400">
+              Distribusi volume status invoice & komparasi aliran dana
             </p>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1e293b",
-                  border: "1px solid #475569",
-                  borderRadius: "8px",
-                }}
-                labelStyle={{ color: "#f1f5f9" }}
-              />
-              <Legend />
-              <Bar dataKey="kunjungan" fill="#0ea5e9" name="Total Kunjungan" />
-              <Bar dataKey="berhasil" fill="#10b981" name="Berhasil" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* --- BREAKDOWN CHARTS (Purpose & Category) --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* --- PIE CHART (Purpose) --- */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="mb-6">
-              <h3 className="font-bold text-lg text-slate-800">
-                Distribusi Tujuan Kunjungan
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Breakdown kunjungan per tujuan
-              </p>
-            </div>
-            {purposeBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={purposeBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent = 0 }) =>
-                      `${name}: ${((percent as number) * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {purposeBreakdown.map((_entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 bg-slate-50 rounded-xl flex items-center justify-center">
-                <p className="text-slate-400 text-sm">Tidak ada data</p>
-              </div>
-            )}
-          </div>
-
-          {/* --- PIE CHART (Category) --- */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="mb-6">
-              <h3 className="font-bold text-lg text-slate-800">
-                Distribusi Jenis Kunjungan
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Breakdown kunjungan per jenis
-              </p>
-            </div>
-            {categoryBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent = 0 }) =>
-                      `${name}: ${((percent as number) * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryBreakdown.map((_entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 bg-slate-50 rounded-xl flex items-center justify-center">
-                <p className="text-slate-400 text-sm">Tidak ada data</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* --- BILLING STATUS BREAKDOWN CHART --- */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="mb-6">
-            <h3 className="font-bold text-lg text-slate-800">
-              Distribusi Status Tagihan
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Breakdown tagihan per status pembayaran
-            </p>
-          </div>
-          {billingBreakdown.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={billingBreakdown}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid #475569",
-                    borderRadius: "8px",
-                  }}
-                  labelStyle={{ color: "#f1f5f9" }}
-                />
-                <Bar dataKey="value" fill="#0ea5e9" name="Jumlah Tagihan" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-80 bg-slate-50 rounded-xl flex items-center justify-center">
-              <p className="text-slate-400 text-sm">Tidak ada data</p>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="font-bold text-lg text-slate-800">
-                Kunjungan Terkini
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                {activities.length} kunjungan terakhir
-              </p>
-            </div>
-            <button className="text-orange-500 text-xs font-bold hover:underline">
-              Lihat Semua
-            </button>
-          </div>
-          <div className="space-y-4">
-            {activities.length > 0 ? (
-              activities.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+          <div className="w-full h-44 flex items-center justify-center my-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={billingBreakdown}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={4}
+                  dataKey="value"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                    <UserIcon size={18} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate">
-                      {item.Debitur?.fullname || "Nasabah"}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Status: {item.VisitStatus?.name || "Tidak Diketahui"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      {moment(item.created_at).format("HH:mm")}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {moment(item.created_at).format("DD-MM-YY")}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-slate-400 text-sm text-center py-8">
-                Tidak ada data kunjungan
-              </p>
-            )}
+                  {billingBreakdown.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={STATUS_COLORS[entry.name]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} Kasus`, "Volume"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-3 border-t pt-4 border-slate-100">
+            <div className="flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
+              <span>Status (Kasus)</span>
+              <div className="flex gap-12">
+                <span className="w-24 text-right">Nilai Tagihan</span>
+                <span className="w-24 text-right">Tertagih</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs px-1 py-0.5 hover:bg-slate-50 rounded-lg transition-colors">
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                Sudah Bayar ({summary.billingPaidCount})
+              </span>
+              <div className="flex gap-4 text-right font-semibold">
+                <span className="w-24 text-slate-400 font-normal">
+                  {IDRFormat(summary.billingPaidValue)}
+                </span>
+                <span className="w-24 text-emerald-600">
+                  {IDRFormat(summary.billingPaidRealize)}
+                </span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs px-1 py-0.5 hover:bg-slate-50 rounded-lg transition-colors">
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                Partial ({summary.billingPartialCount})
+              </span>
+              <div className="flex gap-4 text-right font-semibold">
+                <span className="w-24 text-slate-400 font-normal">
+                  {IDRFormat(summary.billingPartialValue)}
+                </span>
+                <span className="w-24 text-amber-500">
+                  {IDRFormat(summary.billingPartialRealize)}
+                </span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs px-1 py-0.5 hover:bg-slate-50 rounded-lg transition-colors">
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                Belum Bayar ({summary.billingUnpaidCount})
+              </span>
+              <div className="flex gap-4 text-right font-semibold">
+                <span className="w-24 text-slate-400 font-normal">
+                  {IDRFormat(summary.billingUnpaidValue)}
+                </span>
+                <span className="w-24 text-red-500">
+                  {IDRFormat(summary.billingUnpaidRealize)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </Spin>
+
+      {/* --- ROW 3: DETIL PIE CHART DENGAN FINANSIAL FIX --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 1. Pie Chart: By Status Kunjungan */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div className="mb-2 flex items-center gap-2">
+            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">
+                Kunjungan Berdasarkan Status
+              </h4>
+              <p className="text-[11px] text-slate-400">
+                Respon performa kasus di lapangan
+              </p>
+            </div>
+          </div>
+          <div className="w-full h-40 flex items-center justify-center my-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={visitStatusDist}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={60}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {visitStatusDist.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(val) => [`${val} Kasus`, "Volume"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2 border-t pt-3 border-slate-50 text-[11px]">
+            <div className="flex justify-between font-bold text-slate-400 uppercase tracking-wider px-0.5">
+              <span>Status (Kunjungan)</span>
+              <div className="flex gap-6">
+                <span className="w-16 text-right">Tagihan</span>
+                <span className="w-16 text-right">Tertagih</span>
+              </div>
+            </div>
+            {visitStatusDist.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex justify-between items-center text-slate-600 font-medium py-0.5"
+              >
+                <span className="truncate max-w-25 flex items-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full inline-block shrink-0"
+                    style={{
+                      backgroundColor: PIE_COLORS[idx % PIE_COLORS.length],
+                    }}
+                  ></span>
+                  {item.name} ({item.count})
+                </span>
+                <div className="flex gap-2 text-right font-semibold">
+                  <span className="w-20 text-slate-400 font-normal">
+                    {IDRFormat(item.billingValue)}
+                  </span>
+                  <span className="w-20 text-indigo-600">
+                    {IDRFormat(item.realizeValue)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Pie Chart: By Tujuan Kunjungan */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div className="mb-2 flex items-center gap-2">
+            <div className="p-2 bg-sky-50 text-sky-600 rounded-lg">
+              <Target className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">
+                Kunjungan Berdasarkan Tujuan
+              </h4>
+              <p className="text-[11px] text-slate-400">
+                Objektif utama penugasan tim
+              </p>
+            </div>
+          </div>
+          <div className="w-full h-40 flex items-center justify-center my-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={visitPurposeDist}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={60}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {visitPurposeDist.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={PIE_COLORS[(index + 2) % PIE_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(val) => [`${val} Kunjungan`, "Volume"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2 border-t pt-3 border-slate-50 text-[11px]">
+            <div className="flex justify-between font-bold text-slate-400 uppercase tracking-wider px-0.5">
+              <span>Tujuan</span>
+              <div className="flex gap-6">
+                <span className="w-16 text-right">Tagihan</span>
+                <span className="w-16 text-right">Tertagih</span>
+              </div>
+            </div>
+            {visitPurposeDist.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex justify-between items-center text-slate-600 font-medium py-0.5"
+              >
+                <span className="truncate max-w-25 flex items-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full inline-block shrink-0"
+                    style={{
+                      backgroundColor:
+                        PIE_COLORS[(idx + 2) % PIE_COLORS.length],
+                    }}
+                  ></span>
+                  {item.name} ({item.count})
+                </span>
+                <div className="flex gap-2 text-right font-semibold">
+                  <span className="w-20 text-slate-400 font-normal">
+                    {IDRFormat(item.billingValue)}
+                  </span>
+                  <span className="w-20 text-sky-600">
+                    {IDRFormat(item.realizeValue)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 3. Pie Chart: By Jenis / Kategori Kunjungan */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div className="mb-2 flex items-center gap-2">
+            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+              <Bookmark className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">
+                Kunjungan Berdasarkan Jenis
+              </h4>
+              <p className="text-[11px] text-slate-400">
+                Klasifikasi tipe divisi operasional
+              </p>
+            </div>
+          </div>
+          <div className="w-full h-40 flex items-center justify-center my-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={visitCategoryDist}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={60}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {visitCategoryDist.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={PIE_COLORS[(index + 4) % PIE_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(val) => [`${val} Data`, "Volume"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2 border-t pt-3 border-slate-50 text-[11px]">
+            <div className="flex justify-between font-bold text-slate-400 uppercase tracking-wider px-0.5">
+              <span>Jenis Kategori</span>
+              <div className="flex gap-6">
+                <span className="w-16 text-right">Tagihan</span>
+                <span className="w-16 text-right">Tertagih</span>
+              </div>
+            </div>
+            {visitCategoryDist.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex justify-between items-center text-slate-600 font-medium py-0.5"
+              >
+                <span className="truncate max-w-25 flex items-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full inline-block shrink-0"
+                    style={{
+                      backgroundColor:
+                        PIE_COLORS[(idx + 4) % PIE_COLORS.length],
+                    }}
+                  ></span>
+                  {item.name} ({item.count})
+                </span>
+                <div className="flex gap-2 text-right font-semibold">
+                  <span className="w-20 text-slate-400 font-normal">
+                    {IDRFormat(item.billingValue)}
+                  </span>
+                  <span className="w-20 text-purple-600">
+                    {IDRFormat(item.realizeValue)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
-};
-
-// Helper internal untuk icon di list
-const UserIcon = ({ size, className }: { size: any; className: any }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-export default DashboardCallReport;
+}

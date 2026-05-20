@@ -104,16 +104,6 @@ export default function DataBilling() {
       title: "Nasabah",
       key: "name",
       dataIndex: "name",
-      render(_value, record) {
-        return (
-          <div>
-            <div>{record.Debitur ? record.Debitur.fullname : record.name}</div>
-            <div className="text-xs opacity-70">
-              {record.Debitur ? record.Debitur.cif : ""}
-            </div>
-          </div>
-        );
-      },
     },
     {
       title: "Nominal",
@@ -263,9 +253,7 @@ export default function DataBilling() {
               onClick={() =>
                 ExportData(
                   pageprops.data.map((d) => ({
-                    cif: d.Debitur.cif,
-                    nik: d.Debitur.nik,
-                    nama: d.Debitur.fullname || d.name,
+                    name: d.name,
                     nominal_tagihan: d.value,
                     nominal_realisasi: d.realize_value,
                     tanggal_tagih: moment(d.bill_date).format("DD/MM/YYYY"),
@@ -332,7 +320,7 @@ export default function DataBilling() {
               setSelectedRowKeys([]);
               setSelectedRows([]);
             },
-            pageSizeOptions: [50, 100, 500, 1000],
+            pageSizeOptions: [50, 100, 500, 1000, 10000],
             size: "small",
           }}
         />
@@ -722,6 +710,7 @@ const UpdateData = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    name: record.name,
     value: record.value || 0,
     realize_value: record.realize_value || 0,
     bill_date: record.bill_date ? moment(record.bill_date) : moment(),
@@ -736,6 +725,7 @@ const UpdateData = ({
         url: `${import.meta.env.VITE_API_URL}/billing/${record.id}`,
         method: "PUT",
         data: {
+          name: formData.name,
           value: formData.value,
           realize_value: formData.realize_value,
           bill_date: formData.bill_date.toISOString(),
@@ -783,6 +773,20 @@ const UpdateData = ({
       width={500}
     >
       <div className="p-5 space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Nama Nasabah</label>
+          <Input
+            type="number"
+            value={formData.name || ""}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                name: e.target.value,
+              })
+            }
+            placeholder="Masukkan nama nasabah"
+          />
+        </div>
         <div>
           <label className="block text-sm font-medium mb-1">
             Nominal Tagihan

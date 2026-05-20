@@ -204,7 +204,6 @@ model Debitur {
   submissionTypeId String
   Submission       Submission[]
   Visit            Visit[]
-  Billings         Billing[]
 }
 
 model Mitra {
@@ -422,8 +421,6 @@ model Billing {
   status     Boolean  @default(true)
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
-  Debitur    Debitur? @relation(fields: [debiturId], references: [id])
-  debiturId  String?
 }
 
 model AbsenceConfig {

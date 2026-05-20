@@ -32,8 +32,16 @@ import gbookTypeRoute from "./modules/gbook_type/routes.js";
 import fileRoute from "./modules/file/routes.js";
 import logActivitiesRoute from "./modules/log-activities/routes.js";
 import collateralLendingRoute from "./modules/collateral_lending/routes.js";
-import { GET_HOLIDAY, MainDashboard } from "./modules/route.js";
+import {
+  DashboardAbsensi,
+  DashboardCallreport,
+  DashboardEarsip,
+  GET_HOLIDAY,
+  MainDashboard,
+} from "./modules/route.js";
 import type { Role, User } from "@prisma/client";
+import nodeCron from "node-cron";
+import { AlphaDaily } from "./modules/util.js";
 
 interface IUser extends User {
   Role: Role;
@@ -62,7 +70,12 @@ app.use(
 // ROOT APP
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// Dashboard
 app.use("/maindashboard", middleware, MainDashboard);
+app.use("/callreport", middleware, DashboardCallreport);
+app.use("/absensi", middleware, DashboardAbsensi);
+app.use("/earsip", middleware, DashboardEarsip);
+
 app.use("/auth", authRoute);
 app.use("/role", middleware, roleRoute);
 app.use("/position", middleware, posRoute);
@@ -109,3 +122,14 @@ const PORT = process.env.APP_PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server ready at port: ${PORT}`);
 });
+
+nodeCron.schedule(
+  "0 11 * * *",
+  async () => {
+    console.log("Memulai validasi alpha..");
+    await AlphaDaily();
+  },
+  {
+    timezone: "Asia/Jakarta",
+  },
+);

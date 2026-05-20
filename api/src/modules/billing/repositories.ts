@@ -13,23 +13,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
 
   const where: Prisma.BillingWhereInput = {
     status: true,
-    ...(search && {
-      OR: [
-        { name: { contains: search as string } },
-        {
-          Debitur: {
-            OR: [
-              { id: { contains: search as string } },
-              { cif: { contains: search as string } },
-              { fullname: { contains: search as string } },
-              { email: { contains: search as string } },
-              { phone: { contains: search as string } },
-              { nik: { contains: search as string } },
-            ],
-          },
-        },
-      ],
-    }),
+    ...(search && { name: { contains: search as string } }),
     ...(backdate && {
       bill_date: {
         gte: moment((backdate as string).split(",")[0])
@@ -48,9 +32,6 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
       skip,
       take: limit,
       orderBy: { bill_date: "desc" },
-      include: {
-        Debitur: true,
-      },
     }),
     prisma.billing.count({ where }),
   ]);
@@ -85,8 +66,6 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
 
     for (const data of jsonData) {
       const record = {
-        cif: String((data as any).cif),
-        nik: String((data as any).nik),
         nama: String((data as any).nama),
         nominal_tagihan: (data as any).nominal_tagihan
           ? parseInt((data as any).nominal_tagihan || "0")
@@ -102,36 +81,17 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
           : null,
       };
 
-      await prisma.$transaction(
-        async (tx) => {
-          let deb = await tx.debitur.findFirst({
-            where: {
-              OR: [
-                { fullname: record.nama },
-                { cif: record.cif },
-                { nik: record.nik },
-              ],
-            },
-          });
-          const genId = await generateId();
-          await tx.billing.create({
-            data: {
-              id: genId,
-              name: record.nama,
-              bill_date: record.tanggal_tagih,
-              paid_date: record.tanggal_tertagih,
-              value: record.nominal_tagihan,
-              realize_value: record.nominal_realisasi,
-              debiturId: deb?.id,
-            },
-          });
-          return true;
+      const genId = await generateId();
+      await prisma.billing.create({
+        data: {
+          id: genId,
+          name: record.nama,
+          bill_date: record.tanggal_tagih,
+          paid_date: record.tanggal_tertagih,
+          value: record.nominal_tagihan,
+          realize_value: record.nominal_realisasi,
         },
-        {
-          // Opsi untuk memperpanjang napas transaksi (Satuan Milliseconds)
-          timeout: 60000 * 10, // 60 Detik (Sangat cukup untuk ratusan data baris)
-        },
-      );
+      });
     }
     res.status(200).json({
       message: "Data berhasil diimport!",

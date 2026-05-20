@@ -215,8 +215,6 @@ export interface IBilling {
   status: boolean;
   created_at: Date;
   updated_at: Date;
-  Debitur: IDebitur;
-  debiturId: string | null;
 }
 
 export interface IGuestBookType {

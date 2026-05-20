@@ -1,686 +1,696 @@
+import { useState, useEffect } from "react";
+import api from "../../libs/api";
 import {
+  FolderArchive,
   Users,
-  TrendingUp,
-  CreditCard,
-  ArrowUpRight,
-  ArrowDownRight,
+  Layers,
+  Building2,
+  ShieldCheck,
+  Wallet,
+  Percent,
+  CheckCircle2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Spin, message } from "antd";
 import {
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
-import api from "../../libs/api";
+
+// --- INTERFACES BINDING DATA ---
+import type { ISubmission } from "../../libs/interface";
 import { IDRFormat } from "../utils/utilForm";
 
-const DashboardEarsip = () => {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalDebitur: 0,
-    totalValue: "Rp 0",
-    activeSubmissions: 0,
-  });
-  const [groupedProductData, setGroupedProductData] = useState<any[]>([]);
-  const [docStatusChart, setDocStatusChart] = useState<any[]>([]);
-  const [guaranteeStatusChart, setGuaranteeStatusChart] = useState<any[]>([]);
-  const [flaggingStatusChart, setFlaggingStatusChart] = useState<any[]>([]);
-  const [approveStatusChart, setApproveStatusChart] = useState<any[]>([]);
-  const [permitDownloadData, setPermitDownloadData] = useState<any[]>([]);
-  const [permitDeleteData, setPermitDeleteData] = useState<any[]>([]);
+const COLOR_STATUS: Record<string, string> = {
+  APPROVED: "#10b981",
+  DISETUJUI: "#10b981",
+  DONE: "#10b981",
+  PENDING: "#f59e0b",
+  PROSES: "#f59e0b",
+  REJECTED: "#ef4444",
+  DITOLAK: "#ef4444",
+  FLAGGED: "#3b82f6",
+  ACTIVE: "#3b82f6",
+};
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+const PALETTE = [
+  "#6366f1",
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#ec4899",
+  "#8b5cf6",
+];
+
+export default function DashboardEarsip() {
+  const [loading, setLoading] = useState(false);
+
+  // 1. Indikator Utama Global
+  const [globalMetrics, setGlobalMetrics] = useState({
+    totalDebitur: 0,
+    totalSubmission: 0,
+    totalValueLending: 0, // Khusus untuk Tabungan/Kredit/Deposito penyebutan disesuaikan
+    totalValueFunding: 0, // Dana Pihak Ketiga (Tabungan + Deposito)
+    complianceRate: 0, // Rasio pemenuhan file digital arsip
+  });
+
+  // 2. 4 Pilar Status Utama (Request User)
+  const [statusState, setStatusState] = useState({
+    approve: [] as any[],
+    doc: [] as any[],
+    guarantee: [] as any[],
+    flagging: [] as any[],
+  });
+
+  // 3. Analisis Berjenjang (ProductType -> Product -> Submission)
+  const [portfolioMatrix, setPortfolioMatrix] = useState<any[]>([]);
+
+  // 4. Analisis Pihak Ketiga Eksternal
+  const [externalEntities, setExternalEntities] = useState({
+    mitraDist: [] as any[],
+    asuransiDist: [] as any[],
+    payOfficeDist: [] as any[],
+  });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.request({
-        url: "/maindashboard",
-        method: "GET",
-      });
+      const res = await api.get("/earsip");
       if (res?.data) {
-        const data = res.data || {};
+        const {
+          debitur = [],
+          submission = [],
+          producttype = [],
+          mitra = [],
+          asuransi = [],
+          payoffice = [],
+        } = res.data;
 
-        // Calculate total debitur
-        const totalDebitur =
-          data.submissionType?.flatMap((d: any) => d.Debitur || []).length || 0;
+        // Penampung Rumpun Status
+        const appMap: Record<string, number> = {};
+        const docMap: Record<string, number> = {};
+        const guaMap: Record<string, number> = {};
+        const flaMap: Record<string, number> = {};
 
-        // Calculate total value from submissions
-        const totalValue =
-          data.productType
-            ?.flatMap(
-              (pd: any) => pd.Product?.flatMap((p: any) => p.Submission) || [],
-            )
-            .reduce((acc: any, sub: any) => acc + (sub.value || 0), 0) || 0;
+        let totalLending = 0;
+        let totalFunding = 0;
+        let totalRequiredFiles = 0;
+        let totalUploadedFiles = 0;
 
-        // Format currency
-        const formattedValue = new Intl.NumberFormat("id-ID", {
-          style: "currency",
-          currency: "IDR",
-          minimumFractionDigits: 0,
-        }).format(totalValue);
+        // ==================================================
+        // 1. BREAKDOWN PORTOFOLIO BERJENJANG (PRODUCT TYPE -> PRODUCT)
+        // ==================================================
+        const matrixReport = producttype.map((pt: any) => {
+          let typeSubmissionCount = 0;
+          let typeTotalValue = 0;
+          const isFunding =
+            pt.name.toUpperCase().includes("TABUNGAN") ||
+            pt.name.toUpperCase().includes("DEPOSITO");
 
-        // Calculate active submissions
-        const activeSubmissions =
-          data.productType?.flatMap(
-            (pd: any) =>
-              pd.Product?.flatMap((p: any) => p.Submission).filter(
-                (s: any) => s.status === true,
-              ) || [],
-          ).length || 0;
+          // Ambil aturan jumlah file wajib pada tipe produk ini
+          const requiredFileCount = pt.ProductTypeFile?.length || 0;
 
-        setStats({
-          totalDebitur: totalDebitur,
-          totalValue: formattedValue,
-          activeSubmissions: activeSubmissions,
-        });
+          const productBreakdown = pt.Product?.map((p: any) => {
+            const subList = p.Submission || [];
+            typeSubmissionCount += subList.length;
 
-        // Group ProductType + Product data
-        const grouped =
-          data.productType?.map((pt: any) => {
-            const products =
-              pt.Product?.map((p: any) => {
-                const submissions = p.Submission || [];
-                return {
-                  name: p.name,
-                  count: submissions.length,
-                  value: submissions.reduce(
-                    (acc: any, s: any) => acc + (s.value || 0),
-                    0,
-                  ),
-                };
-              }) || [];
-            return {
-              productTypeName: pt.name,
-              products: products,
-            };
-          }) || [];
-        setGroupedProductData(grouped);
+            let productValue = 0;
+            subList.forEach((s: ISubmission) => {
+              const val = s.value || 0;
+              productValue += val;
 
-        // Chart data: Approve Status
-        const approveStatusMap = new Map<string, number>();
-        const docStatusMap = new Map<string, number>();
-        const guaranteeStatusMap = new Map<string, number>();
-        const flaggingStatusMap = new Map<string, number>();
+              // Masuk kalkulasi file compliance
+              totalRequiredFiles += requiredFileCount;
+              totalUploadedFiles += s.Files?.length || 0;
 
-        data.productType?.forEach((pt: any) => {
-          pt.Product?.forEach((p: any) => {
-            p.Submission?.forEach((sub: any) => {
-              // Approve Status
-              const approveStatus = sub.approve_status || "PENDING";
-              approveStatusMap.set(
-                approveStatus,
-                (approveStatusMap.get(approveStatus) || 0) + 1,
-              );
+              // Akumulasi nominal global berdasarkan jenis produk
+              if (isFunding) {
+                totalFunding += val;
+              } else {
+                totalLending += val;
+              }
 
-              // Doc Status
-              const docStatus = sub.doc_status || "PENDING";
-              docStatusMap.set(
-                docStatus,
-                (docStatusMap.get(docStatus) || 0) + 1,
-              );
-
-              // Guarantee Status
-              const guaranteeStatus = sub.guarantee_status || "PENDING";
-              guaranteeStatusMap.set(
-                guaranteeStatus,
-                (guaranteeStatusMap.get(guaranteeStatus) || 0) + 1,
-              );
-
-              // Flagging Status
-              const flaggingStatus = sub.flagging_status || "PENDING";
-              flaggingStatusMap.set(
-                flaggingStatus,
-                (flaggingStatusMap.get(flaggingStatus) || 0) + 1,
-              );
+              // Hitung Frekuensi Status Kontrol (4 Pilar)
+              appMap[s.approve_status || "PENDING"] =
+                (appMap[s.approve_status || "PENDING"] || 0) + 1;
+              docMap[s.doc_status || "PROSES"] =
+                (docMap[s.doc_status || "PROSES"] || 0) + 1;
+              guaMap[s.guarantee_status || "PROSES"] =
+                (guaMap[s.guarantee_status || "PROSES"] || 0) + 1;
+              flaMap[s.flagging_status || "NONE"] =
+                (flaMap[s.flagging_status || "NONE"] || 0) + 1;
             });
+
+            typeTotalValue += productValue;
+
+            return {
+              productName: p.name,
+              count: subList.length,
+              value: productValue,
+            };
           });
+
+          return {
+            typeName: pt.name,
+            totalSubmissions: typeSubmissionCount,
+            totalValue: typeTotalValue,
+            products: productBreakdown || [],
+          };
         });
 
-        setApproveStatusChart(
-          Array.from(approveStatusMap, ([name, value]) => ({ name, value })),
-        );
-        setDocStatusChart(
-          Array.from(docStatusMap, ([name, value]) => ({ name, value })),
-        );
-        setGuaranteeStatusChart(
-          Array.from(guaranteeStatusMap, ([name, value]) => ({ name, value })),
-        );
-        setFlaggingStatusChart(
-          Array.from(flaggingStatusMap, ([name, value]) => ({ name, value })),
-        );
+        setPortfolioMatrix(matrixReport);
 
-        // Fetch Permit Download and Delete
-        try {
-          const [downloadRes, deleteRes] = await Promise.all([
-            api.request({ url: "/permit-download", method: "GET" }),
-            api.request({ url: "/permit-delete", method: "GET" }),
-          ]);
+        // ==================================================
+        // 2. ANALISIS ENTITAS EKSTERNAL (MITRA, INS, PAY OFFICE)
+        // ==================================================
+        const formatExternal = (entities: any[]) =>
+          entities
+            .map((e) => ({
+              name: e.name,
+              volume: e.Submission?.length || 0,
+              value:
+                e.Submission?.length > 0
+                  ? e.Submission.reduce(
+                      (acc: any, curr: any) => acc + curr.value,
+                      0,
+                    )
+                  : 0,
+            }))
+            .filter((e) => e.volume > 0);
 
-          if (downloadRes?.data?.data) {
-            setPermitDownloadData(downloadRes.data.data.slice(0, 5));
-          }
-          if (deleteRes?.data?.data) {
-            setPermitDeleteData(deleteRes.data.data.slice(0, 5));
-          }
-        } catch (error) {
-          // Silent error - these data are optional
-        }
+        setExternalEntities({
+          mitraDist: formatExternal(mitra),
+          asuransiDist: formatExternal(asuransi),
+          payOfficeDist: formatExternal(payoffice),
+        });
+
+        // ==================================================
+        // 3. SET METRICS & FORMAT 4 PILAR STATUS
+        // ==================================================
+        const compliance =
+          totalRequiredFiles > 0
+            ? Math.round((totalUploadedFiles / totalRequiredFiles) * 100)
+            : 100;
+
+        setGlobalMetrics({
+          totalDebitur: debitur.length,
+          totalSubmission: submission.length,
+          totalValueLending: totalLending,
+          totalValueFunding: totalFunding,
+          complianceRate: compliance > 100 ? 100 : compliance,
+        });
+
+        const mapToChartArr = (map: Record<string, number>) =>
+          Object.entries(map).map(([name, value]) => ({ name, value }));
+        setStatusState({
+          approve: mapToChartArr(appMap),
+          doc: mapToChartArr(docMap),
+          guarantee: mapToChartArr(guaMap),
+          flagging: mapToChartArr(flaMap),
+        });
       }
-    } catch (error) {
-      message.error("Gagal mengambil data dashboard");
+    } catch (err) {
+      console.error("Gagal melakukan analisis mendalam E-Arsip:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const statsDisplay = [
-    {
-      label: "Total Nasabah",
-      value: stats.totalDebitur.toString(),
-      icon: <Users size={24} />,
-      trend: "+12.5%",
-      trendUp: true,
-      color: "bg-blue-500",
-    },
-    {
-      label: "Total Nilai Pembiayaan",
-      value: stats.totalValue,
-      icon: <TrendingUp size={24} />,
-      trend: "+8.2%",
-      trendUp: true,
-      color: "bg-orange-500",
-    },
-    // ...productTypes.map((p) => ({
-    //   label: "Total Nilai " + p.name,
-    //   value: `Rp. ${IDRFormat(p.Product.flatMap((pr) => pr.Submission).reduce((acc, curr) => acc + (curr?.value || 0), 0))}`,
-    //   icon: <TrendingUp size={24} />,
-    //   trend: "+8.2%",
-    //   trendUp: true,
-    //   color: "bg-orange-500",
-    // })),
-    {
-      label: "Pembiayaan Aktif",
-      value: stats.activeSubmissions.toString(),
-      icon: <CreditCard size={24} />,
-      trend: "-2.4%",
-      trendUp: false,
-      color: "bg-emerald-500",
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const formatIDR = (num: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(num);
+
+  if (loading) {
+    return (
+      <div className="p-6 h-96 flex flex-col items-center justify-center text-slate-500 gap-2">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-medium">
+          Melakukan kompilasi silang multi-produk e-arsip...
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <Spin spinning={loading}>
-      <div className="space-y-8">
-        {/* --- WELCOME SECTION --- */}
+    <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen">
+      {/* HEADER UTAMA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Selamat Pagi, Syihabudin! 👋
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Berikut adalah ringkasan performa EARSIP wilayah Jawa Barat hari
-            ini.
+          <h2 className="text-xl font-bold text-slate-800">
+            Dashboard Ekosistem Portofolio & E-Arsip
+          </h2>
+          <p className="text-xs text-slate-400">
+            Analisis matriks komparatif produk Funding (Tabungan, Deposito) vs
+            Lending (Kredit) & Tata Kelola Dokumen
           </p>
         </div>
-
-        {/* --- STATS CARDS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {statsDisplay.map((stat, index) => (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-start">
-                <div
-                  className={`${stat.color} p-3 rounded-xl text-white shadow-lg`}
-                >
-                  {stat.icon}
-                </div>
-                <div
-                  className={`flex items-center gap-1 text-xs font-bold ${stat.trendUp ? "text-emerald-600" : "text-red-500"}`}
-                >
-                  {stat.trend}
-                  {stat.trendUp ? (
-                    <ArrowUpRight size={14} />
-                  ) : (
-                    <ArrowDownRight size={14} />
-                  )}
-                </div>
-              </div>
-              <div className="mt-4">
-                <p className="text-slate-500 text-sm font-medium">
-                  {stat.label}
-                </p>
-                <h3 className="text-2xl font-black text-slate-800 mt-1">
-                  {stat.value}
-                </h3>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm self-start">
+          <Percent className="w-4 h-4 text-emerald-500" />
+          <span className="text-xs font-semibold text-slate-600">
+            Digital Archive Compliance:{" "}
+            <b className="text-emerald-600">{globalMetrics.complianceRate}%</b>
+          </span>
         </div>
+      </div>
 
-        {/* --- PRODUCT TYPE CHARTS --- */}
-        <div className="space-y-6">
-          {groupedProductData.length > 0 ? (
-            groupedProductData.map((productType, ptIdx) => (
-              <div
-                key={ptIdx}
-                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
-              >
-                <h3 className="font-bold text-slate-800 mb-6 text-lg">
-                  📊 {productType.productTypeName}{" "}
-                  {productType.products.length > 0 &&
-                    `(Rp. ${IDRFormat(productType.products.reduce((acc: any, curr: any) => acc + curr.value, 0))})`}
-                </h3>
-                {productType.products.length > 0 ? (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-600 mb-3">
-                      Permohonan & Nilai Pembiayaan per Produk
-                    </p>
-                    <ResponsiveContainer width="100%" height={350}>
-                      <BarChart
-                        data={productType.products}
-                        margin={{ top: 20, right: 80, left: 0, bottom: 80 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="name"
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                          fontSize={12}
-                        />
-                        <YAxis
-                          yAxisId="left"
-                          label={{
-                            value: "Jumlah Permohonan",
-                            angle: -90,
-                            position: "insideLeft",
-                          }}
-                        />
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          label={{
-                            value: "Total Nilai (Rp)",
-                            angle: 90,
-                            position: "insideRight",
-                          }}
-                        />
-                        <Tooltip
-                          formatter={(value, name) => {
-                            if (name === "value") {
-                              return [
-                                new Intl.NumberFormat("id-ID", {
-                                  style: "currency",
-                                  currency: "IDR",
-                                  minimumFractionDigits: 0,
-                                }).format(value as number),
-                                "Total Nilai",
-                              ];
-                            }
-                            return [value, "Jumlah"];
-                          }}
-                        />
-                        <Legend />
-                        <Bar
-                          yAxisId="left"
-                          dataKey="count"
-                          fill="#3b82f6"
-                          name="Jumlah Permohonan"
-                          radius={[8, 8, 0, 0]}
-                        />
-                        <Bar
-                          yAxisId="right"
-                          dataKey="value"
-                          fill="#f59e0b"
-                          name="Total Nilai"
-                          radius={[8, 8, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <p className="text-slate-400 text-sm py-8">
-                    Tidak ada data produk untuk {productType.productTypeName}
-                  </p>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <p className="text-slate-400 text-sm text-center py-8">
-                Tidak ada data jenis produk
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* --- STATUS CHARTS SECTION --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Approve Status Chart */}
-          {approveStatusChart.length > 0 && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4 text-center text-sm">
-                Status Nasabah
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={approveStatusChart}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    label={false}
-                    outerRadius={60}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {approveStatusChart.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {approveStatusChart.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                      />
-                      <span className="text-slate-600">{item.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-700">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Doc Status Chart */}
-          {docStatusChart.length > 0 && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4 text-center text-sm">
-                Status Dokumen
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={docStatusChart}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    label={false}
-                    outerRadius={60}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {docStatusChart.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[(index + 2) % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {docStatusChart.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{
-                          backgroundColor: COLORS[(idx + 2) % COLORS.length],
-                        }}
-                      />
-                      <span className="text-slate-600">{item.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-700">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Guarantee Status Chart */}
-          {guaranteeStatusChart.length > 0 && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4 text-center text-sm">
-                Status Jaminan
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={guaranteeStatusChart}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    label={false}
-                    outerRadius={60}
-                    fill="#82ca9d"
-                    dataKey="value"
-                  >
-                    {guaranteeStatusChart.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[(index + 4) % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {guaranteeStatusChart.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{
-                          backgroundColor: COLORS[(idx + 4) % COLORS.length],
-                        }}
-                      />
-                      <span className="text-slate-600">{item.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-700">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Flagging Status Chart */}
-          {flaggingStatusChart.length > 0 && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4 text-center text-sm">
-                Status Flagging
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={flaggingStatusChart}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    label={false}
-                    outerRadius={60}
-                    fill="#ffc658"
-                    dataKey="value"
-                  >
-                    {flaggingStatusChart.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[(index + 6) % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {flaggingStatusChart.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{
-                          backgroundColor: COLORS[(idx + 6) % COLORS.length],
-                        }}
-                      />
-                      <span className="text-slate-600">{item.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-700">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* --- PERMIT DOWNLOAD & DELETE REQUESTS --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Permohonan Download */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-slate-800">Permohonan Download</h3>
-              <button className="text-blue-500 text-xs font-bold hover:underline">
-                Lihat Semua
-              </button>
-            </div>
-            {permitDownloadData.length > 0 ? (
-              <div className="space-y-3">
-                {permitDownloadData.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-sm font-semibold text-slate-800">
-                        Permohonan #{item.id?.substring(0, 8)}
-                      </p>
-                      <span
-                        className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          item.permit_status === "DISETUJUI"
-                            ? "bg-green-100 text-green-800"
-                            : item.permit_status === "DITOLAK"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {item.permit_status || "PENDING"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      {new Date(item.created_at).toLocaleString("id-ID")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-400 text-sm text-center py-8">
-                Tidak ada permohonan download
-              </p>
-            )}
+      {/* --- ROW 1: KUMPULAN METRICS UTAMA (FUNDING VS LENDING) --- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Total CIF Debitur
+            </p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {globalMetrics.totalDebitur}{" "}
+              <span className="text-xs font-normal text-slate-400">
+                Nasabah
+              </span>
+            </h3>
           </div>
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
 
-          {/* Permohonan Hapus */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-slate-800">Permohonan Hapus</h3>
-              <button className="text-blue-500 text-xs font-bold hover:underline">
-                Lihat Semua
-              </button>
-            </div>
-            {permitDeleteData.length > 0 ? (
-              <div className="space-y-3">
-                {permitDeleteData.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-sm font-semibold text-slate-800">
-                        Permohonan #{item.id?.substring(0, 8)}
-                      </p>
-                      <span
-                        className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          item.permit_status === "DISETUJUI"
-                            ? "bg-green-100 text-green-800"
-                            : item.permit_status === "DITOLAK"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {item.permit_status || "PENDING"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      {new Date(item.created_at).toLocaleString("id-ID")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-400 text-sm text-center py-8">
-                Tidak ada permohonan hapus
-              </p>
-            )}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Total Rekening Arsip
+            </p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {globalMetrics.totalSubmission}{" "}
+              <span className="text-xs font-normal text-slate-400">Akun</span>
+            </h3>
+          </div>
+          <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+            <FolderArchive className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Portofolio Dana Masuk (Funding) */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider">
+              Volume Funding (DPK)
+            </p>
+            <h3 className="text-xl font-bold text-slate-800">
+              {formatIDR(globalMetrics.totalValueFunding)}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-medium">
+              Akumulasi Tabungan + Deposito
+            </p>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <Wallet className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Portofolio Dana Keluar (Lending) */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider">
+              Outstanding Lending
+            </p>
+            <h3 className="text-xl font-bold text-slate-800">
+              {formatIDR(globalMetrics.totalValueLending)}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-medium">
+              Plafond Penyaluran Kredit
+            </p>
+          </div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <Layers className="w-5 h-5" />
           </div>
         </div>
       </div>
-    </Spin>
+
+      {/* --- ROW 2: MATRIX ANALISIS BERJENJANG (PRODUCT TYPE -> PRODUCT -> SUBMISSION) --- */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="mb-4">
+          <h3 className="text-sm font-bold text-slate-800">
+            Matriks Segmentasi Berjenjang Lini Produk
+          </h3>
+          <p className="text-xs text-slate-400">
+            Analisis sebaran akun rekening dan kapitalisasi nilai nominal per
+            jenis sub-produk
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Grafik Komparasi Lini Utama */}
+          <div className="xl:col-span-1 h-64 flex items-center justify-center border-r border-slate-100 pr-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={portfolioMatrix}
+                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#f1f5f9"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="typeName"
+                  stroke="#94a3b8"
+                  fontSize={11}
+                  tickLine={false}
+                />
+                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                <Tooltip formatter={(v) => formatIDR(Number(v))} />
+                <Bar
+                  dataKey="totalValue"
+                  name="Total Kapitalisasi"
+                  fill="#6366f1"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Breakdown Detail Sub-Produk */}
+          <div className="xl:col-span-2 space-y-4 max-h-65 overflow-y-auto pr-2">
+            {portfolioMatrix.map((type, idx) => (
+              <div
+                key={idx}
+                className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 space-y-2"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200/60 shadow-sm">
+                    {type.typeName}
+                  </span>
+                  <span className="text-xs font-bold text-indigo-600">
+                    {formatIDR(type.totalValue)}{" "}
+                    <span className="text-slate-400 font-normal">
+                      ({type.totalSubmissions} Akun)
+                    </span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {type.products?.map((prod: any, pIdx: number) => (
+                    <div
+                      key={pIdx}
+                      className="bg-white p-2.5 rounded-lg border border-slate-100 flex justify-between items-center text-[11px]"
+                    >
+                      <span className="font-semibold text-slate-600 truncate max-w-35">
+                        &#8226; {prod.productName}
+                      </span>
+                      <div className="text-right shrink-0">
+                        <span className="font-bold text-slate-800 block">
+                          {formatIDR(prod.value)}
+                        </span>
+                        <span className="text-slate-400 text-[10px]">
+                          {prod.count} Berkas Berhasil diarsip
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* --- ROW 3: 4 PILAR STATUS KONTROL YANG DIMINTA USER --- */}
+      <div className="bg-slate-100/50 p-5 rounded-2xl border border-slate-200/60 space-y-4">
+        <div className="px-1">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-slate-500" /> 4 Pilar Utama
+            Kontrol Status Administrasi Arsip
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Pilar 1: Approve Status Nasabah */}
+          <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col justify-between">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              1. Status Nasabah (Approve)
+            </h4>
+            <div className="h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusState.approve}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={42}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {statusState.approve.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          COLOR_STATUS[entry.name.toUpperCase()] ||
+                          PALETTE[index % PALETTE.length]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-[10px] font-medium space-y-1 border-t pt-2 border-slate-50 text-slate-600">
+              {statusState.approve.map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{item.name}</span>
+                  <b>{item.value} Akun</b>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pilar 2: Status Dokumen */}
+          <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col justify-between">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              2. Status Validasi Dokumen
+            </h4>
+            <div className="h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusState.doc}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={42}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {statusState.doc.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          COLOR_STATUS[entry.name.toUpperCase()] ||
+                          PALETTE[(index + 1) % PALETTE.length]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-[10px] font-medium space-y-1 border-t pt-2 border-slate-50 text-slate-600">
+              {statusState.doc.map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{item.name}</span>
+                  <b>{item.value} Berkas</b>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pilar 3: Status Jaminan */}
+          <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col justify-between">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              3. Status Agunan / Jaminan
+            </h4>
+            <div className="h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusState.guarantee}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={42}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {statusState.guarantee.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          COLOR_STATUS[entry.name.toUpperCase()] ||
+                          PALETTE[(index + 2) % PALETTE.length]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-[10px] font-medium space-y-1 border-t pt-2 border-slate-50 text-slate-600">
+              {statusState.guarantee.map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{item.name}</span>
+                  <b>{item.value} Agunan</b>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pilar 4: Status Flagging */}
+          <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col justify-between">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+              4. Status Flagging Berkas
+            </h4>
+            <div className="h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusState.flagging}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={42}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {statusState.flagging.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          COLOR_STATUS[entry.name.toUpperCase()] ||
+                          PALETTE[(index + 3) % PALETTE.length]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-[10px] font-medium space-y-1 border-t pt-2 border-slate-50 text-slate-600">
+              {statusState.flagging.map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{item.name}</span>
+                  <b>{item.value} Data</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- ROW 4: INTEGRASI PIHAK KETIGA (MITRA, ASURANSI, KANTOR BAYAR) & TRACKING FISIK --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Kontribusi Asosiasi Pihak Ketiga */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800">
+              Volume Berkas dari Aliansi Pihak Ketiga
+            </h3>
+            <p className="text-xs text-slate-400">
+              Total sebaran kontribusi arsip dari Mitra Bisnis, Pihak Asuransi
+              Proteksi, dan Kantor Bayar Mitra
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+            {/* Box Mitra */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-2">
+                <Building2 className="w-3.5 h-3.5 text-indigo-500" /> Mitra
+                Kerja
+              </span>
+              <div className="space-y-1 max-h-30 overflow-y-auto text-[11px]">
+                {externalEntities.mitraDist.length === 0 ? (
+                  <p className="text-slate-400">0 Data</p>
+                ) : (
+                  externalEntities.mitraDist.map((m, i) => (
+                    <div
+                      key={i}
+                      className="flex justify-between text-slate-600"
+                    >
+                      <span>{m.name}</span>
+                      <b>
+                        {m.volume} ({IDRFormat(m.value)})
+                      </b>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Box Asuransi */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />{" "}
+                Asuransi
+              </span>
+              <div className="space-y-1 max-h-30 overflow-y-auto text-[11px]">
+                {externalEntities.asuransiDist.length === 0 ? (
+                  <p className="text-slate-400">0 Data</p>
+                ) : (
+                  externalEntities.asuransiDist.map((a, i) => (
+                    <div
+                      key={i}
+                      className="flex justify-between text-slate-600"
+                    >
+                      <span>{a.name}</span>
+                      <b>
+                        {a.volume} ({IDRFormat(a.value)})
+                      </b>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Box Kantor Bayar */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase flex items-center gap-1.5 mb-2">
+                <Wallet className="w-3.5 h-3.5 text-sky-500" /> Kantor Bayar
+              </span>
+              <div className="space-y-1 max-h-30 overflow-y-auto text-[11px]">
+                {externalEntities.payOfficeDist.length === 0 ? (
+                  <p className="text-slate-400">0 Data</p>
+                ) : (
+                  externalEntities.payOfficeDist.map((p, i) => (
+                    <div
+                      key={i}
+                      className="flex justify-between text-slate-600"
+                    >
+                      <span>{p.name}</span>
+                      <b>
+                        {p.volume} ({IDRFormat(p.value)})
+                      </b>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-};
-
-// Color palette for charts
-const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#8884D8",
-  "#82CA9D",
-  "#FFC658",
-  "#FF7C7C",
-];
-
-export default DashboardEarsip;
+}

@@ -7,54 +7,25 @@ import {
   FileIcon,
   ExternalLink,
   Download,
-  Share2,
   MessageSquare,
   Contact,
 } from "lucide-react";
 import type { IVisit } from "../../libs/interface";
-import { Button, Divider, Tag, Tooltip, message } from "antd";
+import { Button, Divider, Tag, Tooltip } from "antd";
 import {
   ArrowLeftOutlined,
   EnvironmentFilled,
   MailOutlined,
   PhoneOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import moment from "moment";
+import { printDetailVisit } from "../utils/pdfs/detailCallreport";
 
 // Props menggunakan interface IVisit yang Anda berikan
 
 export default function DetailCallReport({ data }: { data: IVisit }) {
-  const [messageApi, contextHolder] = message.useMessage();
-
-  // const handlePrint = () => {
-  //   window.print();
-  // };
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    const title = `Detail Kunjungan - ${data.Debitur?.fullname || "Kunjungan"}`;
-    const text = `Ringkasan: ${data.summary?.substring(0, 100) || "Lihat detail kunjungan"}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          text,
-          url,
-        });
-      } else {
-        // Fallback: copy URL to clipboard
-        await navigator.clipboard.writeText(url);
-        messageApi.success("Link disalin ke clipboard!");
-      }
-    } catch (err) {
-      if (err instanceof Error && err.message !== "AbortError") {
-        messageApi.error("Gagal membagikan konten");
-      }
-    }
-  };
-
   // Safety check untuk data
   if (!data) {
     return (
@@ -80,7 +51,6 @@ export default function DetailCallReport({ data }: { data: IVisit }) {
 
   return (
     <>
-      {contextHolder}
       <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Top Action Bar */}
@@ -95,19 +65,14 @@ export default function DetailCallReport({ data }: { data: IVisit }) {
               </Button>
             </Link>
             <div className="flex gap-2">
-              {/* <Tooltip title="Print">
-                <Button
-                  icon={<Printer size={16} />}
-                  type="text"
-                  onClick={handlePrint}
-                />
-              </Tooltip> */}
               <Tooltip title="Share">
                 <Button
-                  icon={<Share2 size={16} />}
-                  type="text"
-                  onClick={handleShare}
-                />
+                  icon={<PrinterOutlined />}
+                  type="primary"
+                  onClick={() => printDetailVisit(data)}
+                >
+                  Cetak
+                </Button>
               </Tooltip>
             </div>
           </div>

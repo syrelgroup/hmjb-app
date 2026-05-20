@@ -835,7 +835,7 @@ export default function DataSubmission() {
                 limit: pageSize,
               }));
             },
-            pageSizeOptions: [50, 100, 500, 1000],
+            pageSizeOptions: [50, 100, 500, 1000, 10000],
             size: "small",
           }}
           expandable={{

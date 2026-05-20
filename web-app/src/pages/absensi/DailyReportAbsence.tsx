@@ -328,6 +328,12 @@ const DailyReportAbsence = () => {
                           {abs ? (
                             <div className="flex flex-col items-center justify-center gap-0.5">
                               <StatusBadge status={abs.absence_status} />
+                              <div className="text-[9px] font-medium text-slate-600">
+                                {abs.description
+                                  ?.split(",")
+                                  .map((ds) => ds.charAt(0))
+                                  .join("/")}
+                              </div>
                               <div className="text-[9px] font-medium text-slate-600 scale-90 tracking-tighter">
                                 {abs.check_in
                                   ? moment(abs.check_in).format("HH:mm")
@@ -457,7 +463,7 @@ const DailyReportAbsence = () => {
         {/* PAGINATION CONTROL BAR */}
         <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
           <div className="text-xs text-slate-400 italic order-2 sm:order-1">
-            * P / Permohonan = Total data form izin masuk
+            * T (Terlambat), P (Pulang Awal), L (Lembur)
           </div>
           <Pagination
             current={page}
@@ -504,12 +510,6 @@ const DailyReportAbsence = () => {
                   size="small"
                   layout="horizontal"
                 >
-                  <Descriptions.Item label="Total Hari Kerja" span={2}>
-                    <span className="font-semibold">
-                      {s.totalDaysInMonth} Hari Kalender
-                    </span>
-                  </Descriptions.Item>
-
                   <Descriptions.Item label="Hadir">
                     <Tag color="green" className="font-medium px-2">
                       {s.hadir} Hari
@@ -614,14 +614,13 @@ const StatusBadge = ({ status }: { status: string }) => {
     CUTI: "bg-blue-500 text-white",
     PERDIN: "bg-indigo-500 text-white",
     ALPHA: "bg-rose-500 text-white",
-    LEMBUR: "bg-violet-500 text-white",
   };
   return (
     <div className="flex justify-center">
       <span
         className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-black shadow-sm ${config[status] || "bg-slate-200 text-slate-400"}`}
       >
-        {status ? status.substring(0, 2) : "--"}
+        {status ? status.charAt(0) : "-"}
       </span>
     </div>
   );

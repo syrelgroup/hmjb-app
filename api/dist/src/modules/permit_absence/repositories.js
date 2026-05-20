@@ -129,7 +129,6 @@ export const PUT = async (req, res, next) => {
                         });
                         currentDate.add(1, "days");
                     }
-                    console.log(datesToInsert);
                     await tx.absence.createMany({
                         data: datesToInsert.map(({ id, ...rest }) => rest),
                     });
@@ -140,14 +139,8 @@ export const PUT = async (req, res, next) => {
                         where: {
                             id: Absence.id,
                         },
-                        update: {
-                            alpha_deduction: abs.alpha_deduction,
-                            fast_leave_deduction: abs.fast_leave_deduction,
-                            late_deduction: abs.late_deduction,
-                            lemburan: abs.lemburan,
-                            ...abs,
-                        },
-                        create: { ...abs },
+                        update: abs,
+                        create: abs,
                     });
                 }
             }

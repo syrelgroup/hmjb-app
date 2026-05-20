@@ -36,6 +36,7 @@ export const GET = async (req, res, next) => {
                             ? {
                                 created_at: {
                                     gte: moment(month)
+                                        .subtract(1, "month")
                                         .set("date", 21)
                                         .startOf("day")
                                         .toDate(),
@@ -60,6 +61,7 @@ export const GET = async (req, res, next) => {
                             ? {
                                 created_at: {
                                     gte: moment(month)
+                                        .subtract(1, "month")
                                         .set("date", 21)
                                         .startOf("day")
                                         .toDate(),
@@ -71,7 +73,11 @@ export const GET = async (req, res, next) => {
                             }
                             : {
                                 created_at: {
-                                    gte: moment().set("date", 21).startOf("day").toDate(),
+                                    gte: moment()
+                                        .subtract(1, "month")
+                                        .set("date", 21)
+                                        .startOf("day")
+                                        .toDate(),
                                     lte: moment().set("date", 20).endOf("day").toDate(),
                                 },
                             }),
@@ -79,32 +85,6 @@ export const GET = async (req, res, next) => {
                 },
                 UserCost: {
                     where: {
-                        // ...(month
-                        //   ? {
-                        //       OR: [
-                        //         {
-                        //           start_at: {
-                        //             lte: moment(month as string)
-                        //               .endOf("month")
-                        //               .toDate(),
-                        //           },
-                        //           end_at: {
-                        //             gte: moment(month as string)
-                        //               .startOf("month")
-                        //               .toDate(),
-                        //           },
-                        //         },
-                        //         {
-                        //           start_at: {
-                        //             lte: moment(month as string)
-                        //               .endOf("month")
-                        //               .toDate(),
-                        //           },
-                        //           end_at: null,
-                        //         },
-                        //       ],
-                        //     }
-                        //   : {}),
                         end_at: null,
                     },
                 },
@@ -114,6 +94,7 @@ export const GET = async (req, res, next) => {
                             ? {
                                 created_at: {
                                     gte: moment(month)
+                                        .subtract(1, "month")
                                         .set("date", 21)
                                         .startOf("day")
                                         .toDate(),
@@ -125,12 +106,45 @@ export const GET = async (req, res, next) => {
                             }
                             : {
                                 created_at: {
-                                    gte: moment().set("date", 21).startOf("day").toDate(),
+                                    gte: moment()
+                                        .subtract(1, "month")
+                                        .set("date", 21)
+                                        .startOf("day")
+                                        .toDate(),
                                     lte: moment().set("date", 20).endOf("day").toDate(),
                                 },
                             }),
                         status: true,
                         approve_status: "DISETUJUI",
+                    },
+                },
+                Deduction: {
+                    where: {
+                        ...(month
+                            ? {
+                                created_at: {
+                                    gte: moment(month)
+                                        .subtract(1, "month")
+                                        .set("date", 21)
+                                        .startOf("day")
+                                        .toDate(),
+                                    lte: moment(month)
+                                        .set("date", 20)
+                                        .endOf("day")
+                                        .toDate(),
+                                },
+                            }
+                            : {
+                                created_at: {
+                                    gte: moment()
+                                        .subtract(1, "month")
+                                        .set("date", 21)
+                                        .startOf("day")
+                                        .toDate(),
+                                    lte: moment().set("date", 20).endOf("day").toDate(),
+                                },
+                            }),
+                        status: true,
                     },
                 },
             },

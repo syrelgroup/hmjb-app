@@ -47,7 +47,7 @@ export const GET = async (req, res, next) => {
 };
 export const POST = async (req, res, next) => {
     let body = req.body;
-    const { id, UserCost, Absence, Position, Role, PermitAbsence, Insentif, ...usersaved } = body;
+    const { id, UserCost, Absence, Position, Role, PermitAbsence, Insentif, Deduction, ...usersaved } = body;
     try {
         const genId = await generateId();
         const hashed = await bcrypt.hash(usersaved.password, 10);
@@ -77,7 +77,7 @@ export const POST = async (req, res, next) => {
 export const PUT = async (req, res, next) => {
     let { id } = req.query;
     let body = req.body;
-    const { UserCost, Absence, Position, Role, PermitAbsence, Insentif, ...usersaved } = body;
+    const { UserCost, Absence, Position, Role, PermitAbsence, Insentif, Deduction, ...usersaved } = body;
     try {
         if (!id)
             return ResponseServer(res, 404, {

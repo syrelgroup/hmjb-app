@@ -79,15 +79,6 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Validate date_plan >= today
-    if (data.date_plan) {
-      const planDate = new Date(data.date_plan);
-      planDate.setHours(0, 0, 0, 0);
-      if (planDate < today) {
-        errors.date_plan = "Tanggal rencana tidak boleh kurang dari hari ini";
-      }
-    }
-
     // Validate date_action >= date_plan
     if (data.date_action && data.date_plan) {
       const actionDate = new Date(data.date_action);
@@ -105,7 +96,7 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
   };
 
   const handleSubmit = async () => {
-    if (!validateDates()) {
+    if (record && !record.date_action && !validateDates()) {
       return;
     }
 

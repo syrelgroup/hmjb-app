@@ -117,8 +117,8 @@ export const DELETE = async (req, res, next) => {
     }
 };
 async function generateId() {
-    const prefix = "SID";
+    const prefix = "INSC";
     const padLength = 4;
-    const lastRecord = await prisma.submission.count({});
+    const lastRecord = await prisma.insentif.count({});
     return `${prefix}${String(lastRecord + 1).padStart(padLength, "0")}`;
 }
