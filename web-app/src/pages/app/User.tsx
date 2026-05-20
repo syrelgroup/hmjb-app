@@ -430,7 +430,9 @@ const UpsertData = ({
   roles: IRole[];
   positions: IPosition[];
 }) => {
-  const [data, setData] = useState<IUser>(record || defaultData);
+  const [data, setData] = useState<IUser>(
+    record ? { ...record, password: "" } : defaultData,
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -452,6 +454,7 @@ const UpsertData = ({
           message.success("Upsert data user berhasil");
           setOpen(false);
           getData();
+          setData(defaultData);
         } else {
           message.error(res.data.msg || "Upsert data user gagal");
         }
@@ -557,16 +560,14 @@ const UpsertData = ({
             layout="horizontal"
             onchage={(value: string) => setData({ ...data, phone: value })}
           />
-          {!record && (
-            <InputUtil
-              label="Password"
-              value={data.password}
-              required
-              type="password"
-              layout="horizontal"
-              onchage={(value: string) => setData({ ...data, password: value })}
-            />
-          )}
+          <InputUtil
+            label="Password"
+            value={data.password}
+            required
+            type="password"
+            layout="horizontal"
+            onchage={(value: string) => setData({ ...data, password: value })}
+          />
           <InputUtil
             label="Gaji Pokok"
             value={IDRFormat(data.salary)}
@@ -745,6 +746,9 @@ const UpsertData = ({
               </div>
             ))}
             {AddButton("PENAMBAHAN")}
+            <div className="text-blue-500 italic text-xs mt-4">
+              !Kosongkan password jika tidak ingin dirubah
+            </div>
           </div>
         </div>
       </div>

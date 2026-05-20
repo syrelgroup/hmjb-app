@@ -213,9 +213,6 @@ export default function UserProfile() {
                 {loading ? "Uploading..." : "Upload Foto"}
               </Button>
             </Upload>
-            <Button icon={<UploadIcon size={16} />} loading={loading} block>
-              {loading ? "Scanning..." : "Scan Wajah"}
-            </Button>
           </Space>
         </Card>
 

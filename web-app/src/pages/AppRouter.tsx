@@ -48,6 +48,7 @@ import DataPayOffice from "./app/PayOffice";
 import DataInsurance from "./app/Insurance";
 import DeductionPage from "./absensi/Deduction";
 import DataBilling from "./creport/Billing";
+import WelcomePage from "./app/WelcomePage";
 
 function AppRouter() {
   const path = window.location.pathname;
@@ -64,7 +65,8 @@ function AppRouter() {
   return (
     <main className="bg-slate-50">
       <Routes>
-        <Route path="/" element={<DashboardApp />} />
+        <Route path="/" element={<WelcomePage />} />
+        <Route path="/dashboard" element={<DashboardApp />} />
         <Route path="/profile" element={<UserProfile />} />
         <Route element={<ProtectedRoute path={path} />}>
           <Route path="/sub_type" element={<DataSubmissionType />} />

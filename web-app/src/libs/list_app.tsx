@@ -79,7 +79,7 @@ export const apps: AppConfig[] = [
 export const menus: IMenu[] = [
   {
     name: "Dashboard",
-    path: "/app",
+    path: "/app/dashboard",
     icon: <SquareDashedKanbanIcon size={20} />,
     need_access: true,
   },

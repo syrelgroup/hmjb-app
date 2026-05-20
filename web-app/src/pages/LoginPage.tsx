@@ -60,15 +60,21 @@ function LoginPage() {
   }, [user]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden border border-gray-100">
+    <div
+      className="min-h-screen bg-gray-50 flex items-center justify-center"
+      style={{
+        backgroundImage: "url(/assets/build.jpeg)",
+        backgroundSize: "contain",
+      }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden border border-gray-100 ">
         {/* --- Bagian Kiri: Pilihan Aplikasi --- */}
         <div
           style={{ backgroundColor: APP_COLOR }}
           className="w-full md:w-2/5 p-8 text-white flex flex-col justify-between"
         >
           <div>
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-4">
               <Building2 className="w-9 h-9" />
               <div className="flex flex-col">
                 <h1 className="text-2xl font-bold leading-tight">
@@ -85,7 +91,7 @@ function LoginPage() {
               Internal Terpadu
             </h2> */}
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* <p className="text-sm font-medium text-orange-100 mb-2">
                 PILIH APLIKASI UNTUK MASUK:
               </p> */}
@@ -124,7 +130,7 @@ function LoginPage() {
         </div>
 
         {/* --- Bagian Kanan: Form Login --- */}
-        <div className="w-full md:w-3/5 p-10 md:p-10 flex flex-col justify-center">
+        <div className="w-full md:w-3/5 p-6 md:p-6 flex flex-col justify-center">
           <div className="mb-8 text-center md:text-left">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-1">
               Login
@@ -241,7 +247,7 @@ function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-100 text-right text-sm text-gray-500">
+          <div className="mt-4 pt-4 border-t border-gray-100 text-right text-sm text-gray-500">
             <div>Version 1.00</div>
             <div>Registered to:</div>
             <div>PT. BPR Hasamitra Jawa Barat</div>

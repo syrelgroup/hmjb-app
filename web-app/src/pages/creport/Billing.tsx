@@ -342,6 +342,7 @@ export default function DataBilling() {
         setOpen={(val: boolean) =>
           setAction({ ...action, upsert: val, record: undefined })
         }
+        getData={getData}
         key={action.record ? "upsert" + action.record.id : "upsert"}
       />
       {action.delete && action.record && (
@@ -385,9 +386,11 @@ export default function DataBilling() {
 const UpsertData = ({
   open,
   setOpen,
+  getData,
 }: {
   open: boolean;
   setOpen: Function;
+  getData: Function;
 }) => {
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
@@ -428,6 +431,7 @@ const UpsertData = ({
           `Sukses: ${resData.message || "Berhasil"} (${resData.total_data || 0} data diproses)`,
         );
         setFileList([]); // Reset file list setelah sukses
+        await getData();
       } else {
         setMessage(`Gagal: ${response.data?.message || "Terjadi kesalahan"}`);
       }
