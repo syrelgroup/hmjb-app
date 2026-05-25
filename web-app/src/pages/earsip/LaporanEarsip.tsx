@@ -7,7 +7,6 @@ import {
   Building2,
   ShieldCheck,
   Wallet,
-  Percent,
   CheckCircle2,
 } from "lucide-react";
 import {
@@ -22,10 +21,16 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import ExcelJS from "exceljs";
 
 // --- INTERFACES BINDING DATA ---
-import type { ISubmission } from "../../libs/interface";
+import type { IMitra, ISubmission } from "../../libs/interface";
 import { IDRFormat } from "../utils/utilForm";
+import { Button, DatePicker, Modal } from "antd";
+import { PrinterOutlined } from "@ant-design/icons";
+import { printEarsip } from "../utils/pdfs/earsip";
+import moment from "moment";
+import useContext from "../../libs/context";
 
 const COLOR_STATUS: Record<string, string> = {
   APPROVED: "#10b981",
@@ -48,8 +53,11 @@ const PALETTE = [
   "#8b5cf6",
 ];
 
-export default function DashboardEarsip() {
+export default function LaporanEarsip() {
   const [loading, setLoading] = useState(false);
+  const [month, setMonth] = useState<string | null>(null);
+  const [data, setData] = useState<any>();
+  const { hasAccess } = useContext();
 
   // 1. Indikator Utama Global
   const [globalMetrics, setGlobalMetrics] = useState({
@@ -81,7 +89,7 @@ export default function DashboardEarsip() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/earsip");
+      const res = await api.get("/earsip", { params: { month: month } });
       if (res?.data) {
         const {
           debitur = [],
@@ -91,6 +99,7 @@ export default function DashboardEarsip() {
           asuransi = [],
           payoffice = [],
         } = res.data;
+        setData(res.data);
 
         // Penampung Rumpun Status
         const appMap: Record<string, number> = {};
@@ -224,7 +233,7 @@ export default function DashboardEarsip() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [month]);
 
   const formatIDR = (num: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -238,7 +247,7 @@ export default function DashboardEarsip() {
       <div className="p-6 h-96 flex flex-col items-center justify-center text-slate-500 gap-2">
         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm font-medium">
-          Melakukan analisis dashboard e-arsip...
+          Melakukan data analisis dashboard...
         </p>
       </div>
     );
@@ -257,12 +266,20 @@ export default function DashboardEarsip() {
             Lending (Kredit) & Tata Kelola Dokumen
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm self-start">
-          <Percent className="w-4 h-4 text-emerald-500" />
+        <div className="flex items-center gap-2 px-4 py-2  self-start">
+          {/* <Percent className="w-4 h-4 text-emerald-500" />
           <span className="text-xs font-semibold text-slate-600">
             Digital Archive Compliance:{" "}
             <b className="text-emerald-600">{globalMetrics.complianceRate}%</b>
-          </span>
+          </span> */}
+          <DatePicker
+            picker="month"
+            size="small"
+            onChange={(_, datestr) => setMonth(datestr)}
+          />
+          {hasAccess(window.location.pathname, "download") && (
+            <ExportsData data={data} month={month} />
+          )}
         </div>
       </div>
 
@@ -693,4 +710,560 @@ export default function DashboardEarsip() {
       </div>
     </div>
   );
+}
+
+const ExportsData = ({ data, month }: { data: any; month: string | null }) => {
+  const [open, setOpen] = useState(false);
+
+  const handleExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+
+      // 1. Inisialisasi struktur penampung data terpisah
+      const dataPensiunan: any[] = [];
+      const dataNonPensiunan: any[] = [];
+
+      // Inisialisasi struktur akumulator nilai total global
+      const totalspensiun = createInitialTotal();
+      const totalsnonpensiun = createInitialTotal();
+
+      // 2. Pemisahan mutlak tingkat Debitur/Nasabah
+      data.mitra.forEach((mitra: IMitra) => {
+        const submissions = (mitra.Submission || []) as ISubmission[];
+        const subPensiun: ISubmission[] = [];
+        const subNonPensiun: ISubmission[] = [];
+
+        for (const s of submissions) {
+          if (s.flagging_status === "NON_PENSIUNAN") {
+            subNonPensiun.push(s);
+          } else {
+            subPensiun.push(s);
+          }
+        }
+
+        if (subPensiun.length > 0) {
+          const rowPensiun = hitungStatusSubmissions(subPensiun, totalspensiun);
+          dataPensiunan.push({
+            ...mitra,
+            Submission: subPensiun,
+            rekap: rowPensiun,
+          });
+        }
+
+        if (subNonPensiun.length > 0) {
+          const rowNonPensiun = hitungStatusSubmissions(
+            subNonPensiun,
+            totalsnonpensiun,
+          );
+          dataNonPensiunan.push({
+            ...mitra,
+            Submission: subNonPensiun,
+            rekap: rowNonPensiun,
+          });
+        }
+      });
+
+      // 3. Bangun Lembar Kerja (Sheets) Excel
+      buildSheet(
+        workbook,
+        "Rekap Mitra Pensiun",
+        "REKAP BERDASARKAN MITRA KERJA PENSIUN",
+        dataPensiunan,
+        true,
+        month,
+      );
+      buildSheet(
+        workbook,
+        "Rekap Mitra Non Pensiun",
+        "REKAP BERDASARKAN MITRA KERJA NON PENSIUN",
+        dataNonPensiunan,
+        false,
+        month,
+      );
+
+      // === FIX TERBESAR: Proses Memicu Unduhan Otomatis Di Browser ===
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      // Bungkus kumpulan byte menjadi tipe file Excel resmi
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      // Buat link samaran untuk download file
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `Rekap_Mitra_Kerja_${month || "Semua_Periode"}.xlsx`;
+
+      document.body.appendChild(anchor);
+      anchor.click(); // Paksa browser klik download
+
+      // Bersihkan sisa elemen dari DOM browser
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(url);
+
+      // Tutup modal otomatis setelah berhasil download
+      setOpen(false);
+    } catch (error) {
+      console.error("Gagal mengekspor berkas Excel: ", error);
+    }
+  };
+
+  return (
+    <div>
+      <Button
+        icon={<PrinterOutlined />}
+        size="small"
+        type="primary"
+        onClick={() => setOpen(true)}
+      >
+        Cetak Laporan
+      </Button>
+
+      <Modal
+        open={open}
+        title="Export Data"
+        destroyOnHidden
+        onCancel={() => setOpen(false)}
+      >
+        <div className="flex gap-4 justify-evenly">
+          <Button
+            type="primary"
+            icon={<PrinterOutlined />}
+            onClick={() => handleExcel()}
+          >
+            Cetak Excel
+          </Button>
+          <Button
+            type="primary"
+            icon={<PrinterOutlined />}
+            onClick={() => printEarsip(data, month)}
+          >
+            Cetak PDF
+          </Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+function buildSheet(
+  workbook: ExcelJS.Workbook,
+  sheetName: string,
+  titleText: string,
+  dataRows: any[],
+  isPensiun: boolean,
+  month: string | null,
+) {
+  const ws = workbook.addWorksheet(sheetName, {
+    views: [{ showGridLines: true }],
+  });
+
+  // ==================== 1. STYLES SHARED ====================
+  const fillHeader = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFB4C6E7" },
+  } as ExcelJS.Fill;
+  const fontHeader = {
+    name: "Calibri",
+    size: 11,
+    bold: true,
+    color: { argb: "FF000000" },
+  };
+  const borderThin = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  } as ExcelJS.Borders;
+
+  // Sudah diperbaiki: Hanya dideklarasikan 1 kali di sini untuk seluruh fungsi
+  const alignCenter: Partial<ExcelJS.Alignment> = {
+    horizontal: "center",
+    vertical: "middle",
+    wrapText: true,
+  };
+
+  // ==================== 2. DEFINISI KOLOM ====================
+  const baseColumns = [
+    { key: "no", width: 6 },
+    { key: "nama_mitra", width: 35 },
+    { key: "jml_debitur", width: 15 },
+    { key: "aktif", width: 12 },
+    { key: "lunas", width: 12 },
+    { key: "jam_terima", width: 13 },
+    { key: "jam_pinjam", width: 13 },
+    { key: "jam_pending", width: 13 },
+    { key: "file_terima", width: 13 },
+    { key: "file_pinjam", width: 13 },
+    { key: "file_pending", width: 13 },
+  ];
+
+  // Jika pensiun, tambahkan kolom Flagging di akhir (paling kanan)
+  if (isPensiun) {
+    baseColumns.push(
+      { key: "flagging", width: 12 },
+      { key: "pending_flag", width: 12 },
+    );
+  }
+  ws.columns = baseColumns;
+
+  // Teks Judul Atas
+  ws.getCell("A1").value = titleText;
+  ws.getCell("A1").font = {
+    name: "Calibri",
+    size: 16,
+    bold: true,
+    color: { argb: "FF002060" },
+  };
+  ws.getCell("A2").value = "PT. BPR HASAMITRA JAWA BARAT";
+  ws.getCell("A2").font = {
+    name: "Calibri",
+    size: 11,
+    bold: true,
+    color: { argb: "FF333333" },
+  };
+  ws.getCell("A3").value =
+    `Periode: ${month ? moment(month).format("MMMM YYYY") : "SEMUA DATA"}`;
+  ws.getCell("A3").font = {
+    name: "Calibri",
+    size: 10,
+    italic: true,
+    color: { argb: "FF595959" },
+  };
+
+  // Total jumlah kolom fisik (Pensiun: 13 kolom [A-M], Non-Pensiun: 11 kolom [A-K])
+  const maxColIndex = isPensiun ? 13 : 11;
+
+  // ==================== 3. SETUP HEADER BERTINGKAT ====================
+  const headersTop = isPensiun
+    ? [
+        { text: "No", s: "A5", e: "A6" },
+        { text: "Nama Mitra", s: "B5", e: "B6" },
+        { text: "Jumlah Debitur", s: "C5", e: "C6" },
+        { text: "Status Nasabah", s: "D5", e: "E5" },
+        { text: "Status SK Asli", s: "F5", e: "H5" },
+        { text: "Status File Kredit", s: "I5", e: "K5" },
+        { text: "Status Flagging", s: "L5", e: "M5" }, // Flagging pindah ke akhir [L-M]
+      ]
+    : [
+        { text: "No", s: "A5", e: "A6" },
+        { text: "Nama Mitra", s: "B5", e: "B6" },
+        { text: "Jumlah Debitur", s: "C5", e: "C6" },
+        { text: "Status Nasabah", s: "D5", e: "E5" },
+        { text: "Jaminan Asli", s: "F5", e: "H5" },
+        { text: "Status File Kredit", s: "I5", e: "K5" },
+      ];
+
+  headersTop.forEach((h) => {
+    ws.mergeCells(`${h.s}:${h.e}`);
+    const cell = ws.getCell(h.s);
+    cell.value = h.text;
+    cell.font = fontHeader;
+    cell.fill = fillHeader;
+    cell.alignment = alignCenter;
+  });
+
+  const subHeaders = isPensiun
+    ? [
+        { pos: "D6", text: "Aktif" },
+        { pos: "E6", text: "Lunas" },
+        { pos: "F6", text: "Diterima" },
+        { pos: "G6", text: "Dipinjam" },
+        { pos: "H6", text: "Pending" },
+        { pos: "I6", text: "Diterima" },
+        { pos: "J6", text: "Dipinjam" },
+        { pos: "K6", text: "Pending" },
+        { pos: "L6", text: "Flagging" },
+        { pos: "M6", text: "Pending" }, // Sub-header di akhir
+      ]
+    : [
+        { pos: "D6", text: "Aktif" },
+        { pos: "E6", text: "Lunas" },
+        { pos: "F6", text: "Diterima" },
+        { pos: "G6", text: "Dipinjam" },
+        { pos: "H6", text: "Pending" },
+        { pos: "I6", text: "Diterima" },
+        { pos: "J6", text: "Dipinjam" },
+        { pos: "K6", text: "Pending" },
+      ];
+
+  subHeaders.forEach((sh) => {
+    const cell = ws.getCell(sh.pos);
+    cell.value = sh.text;
+    cell.font = fontHeader;
+    cell.fill = fillHeader;
+    cell.alignment = alignCenter;
+  });
+
+  // Warnai background dan border seluruh header (Baris 5 & 6)
+  for (let r = 5; r <= 6; r++) {
+    ws.getRow(r).height = r === 5 ? 24 : 20;
+    for (let c = 1; c <= maxColIndex; c++) {
+      const cell = ws.getCell(r, c);
+      cell.border = borderThin;
+      cell.fill = fillHeader;
+    }
+  }
+
+  // ==================== 4. MASUKKAN DATA ROWS ====================
+  let startRow = 7;
+  dataRows.forEach((row, idx) => {
+    const currentRow = startRow + idx;
+    ws.getRow(currentRow).height = 20;
+
+    // Data standar awal
+    const values = [
+      idx + 1,
+      (row.name || "-").toUpperCase(),
+      row.Submission.length,
+      row.rekap.aktif,
+      row.rekap.lunas,
+      row.rekap.jamDiterima,
+      row.rekap.jamDipinjam,
+      row.rekap.jamPending,
+      row.rekap.fileDiterima,
+      row.rekap.fileDipinjam,
+      row.rekap.filePending,
+    ];
+
+    // Jika pensiun, push data flagging di urutan paling akhir array
+    if (isPensiun) {
+      values.push(row.rekap.flagging, row.rekap.pendingFlagging);
+    }
+
+    values.forEach((val, colIdx) => {
+      const cell = ws.getCell(currentRow, colIdx + 1);
+      cell.value = val;
+      cell.border = borderThin;
+      cell.font = { name: "Calibri", size: 11 };
+
+      if (colIdx === 1) {
+        cell.alignment = { horizontal: "left", vertical: "middle" };
+      } else {
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      }
+
+      if (colIdx >= 2) {
+        cell.numFmt = "#,##0";
+      }
+    });
+  });
+
+  // ==================== 5. BARIS TOTAL (SUM FORMULA) ====================
+  const totalRowIndex = startRow + dataRows.length;
+  ws.getRow(totalRowIndex).height = 22;
+  ws.mergeCells(`A${totalRowIndex}:B${totalRowIndex}`);
+
+  const totalLabelCell = ws.getCell(`A${totalRowIndex}`);
+  totalLabelCell.value = "TOTAL";
+  totalLabelCell.font = { name: "Calibri", size: 11, bold: true };
+  totalLabelCell.alignment = { horizontal: "right", vertical: "middle" };
+
+  // Tentukan huruf kolom yang akan di-SUM secara otomatis
+  const columnsToSum = isPensiun
+    ? ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"] // Sampai M untuk Pensiun
+    : ["C", "D", "E", "F", "G", "H", "I", "J", "K"];
+
+  columnsToSum.forEach((colLetter) => {
+    const cell = ws.getCell(`${colLetter}${totalRowIndex}`);
+    cell.value = {
+      formula: `SUM(${colLetter}${startRow}:${colLetter}${totalRowIndex - 1})`,
+    };
+    cell.font = { name: "Calibri", size: 11, bold: true };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.numFmt = "#,##0";
+  });
+
+  const borderTotal = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    right: { style: "thin" },
+    bottom: { style: "double" },
+  } as ExcelJS.Borders;
+
+  for (let c = 1; c <= maxColIndex; c++) {
+    const cell = ws.getCell(totalRowIndex, c);
+    cell.fill = fillHeader;
+    cell.border = borderTotal;
+  }
+
+  // ==================== 6. BLOK TANDA TANGAN (3 KOLOM SEJAJAR) ====================
+  const signStartRow = totalRowIndex + 3;
+
+  // Posisi dinamis: Kolom tengah di F-G. Kolom kanan di K-M (Pensiun) atau I-K (Non-Pensiun)
+  const midColStart = "F";
+  const midColEnd = "G";
+  const rightColStart = isPensiun ? "K" : "I";
+  const rightColEnd = isPensiun ? "M" : "K";
+
+  // Tanggal Cetak Laporan
+  const today = new Date();
+  const namaBulan = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+  const formattedDate = `Depok, ${today.getDate()} ${namaBulan[today.getMonth()]} ${today.getFullYear()}`;
+
+  ws.mergeCells(
+    `${rightColStart}${signStartRow - 1}:${rightColEnd}${signStartRow - 1}`,
+  );
+  const dateCell = ws.getCell(`${rightColStart}${signStartRow - 1}`);
+  dateCell.value = formattedDate;
+  dateCell.font = { name: "Calibri", size: 11, italic: true };
+  dateCell.alignment = alignCenter;
+
+  // Baris Jabatan Atas
+  const fontLabel = { name: "Calibri", size: 11, bold: true };
+
+  ws.mergeCells(`B${signStartRow}:C${signStartRow}`);
+  const leftTitle = ws.getCell(`B${signStartRow}`);
+  leftTitle.value = "Disiapkan Oleh:";
+  leftTitle.font = fontLabel;
+  leftTitle.alignment = alignCenter;
+
+  ws.mergeCells(`${midColStart}${signStartRow}:${midColEnd}${signStartRow}`);
+  const midTitle = ws.getCell(`${midColStart}${signStartRow}`);
+  midTitle.value = "Diperiksa Oleh:";
+  midTitle.font = fontLabel;
+  midTitle.alignment = alignCenter;
+
+  ws.mergeCells(
+    `${rightColStart}${signStartRow}:${rightColEnd}${signStartRow}`,
+  );
+  const rightTitle = ws.getCell(`${rightColStart}${signStartRow}`);
+  rightTitle.value = "Disetujui Oleh:";
+  rightTitle.font = fontLabel;
+  rightTitle.alignment = alignCenter;
+
+  // Baris Nama Penandatangan (Space tinggi baris diatur 20)
+  const nameRowIndex = signStartRow + 5;
+  ws.getRow(nameRowIndex).height = 20;
+  const fontName = { name: "Calibri", size: 11, bold: true, underline: true };
+
+  ws.mergeCells(`B${nameRowIndex}:C${nameRowIndex}`);
+  const leftName = ws.getCell(`B${nameRowIndex}`);
+  leftName.value = "Leony";
+  leftName.font = fontName;
+  leftName.alignment = alignCenter;
+
+  ws.mergeCells(`${midColStart}${nameRowIndex}:${midColEnd}${nameRowIndex}`);
+  const midName = ws.getCell(`${midColStart}${nameRowIndex}`);
+  midName.value = "Komang Gd Ariawan";
+  midName.font = fontName;
+  midName.alignment = alignCenter;
+
+  ws.mergeCells(
+    `${rightColStart}${nameRowIndex}:${rightColEnd}${nameRowIndex}`,
+  );
+  const rightName = ws.getCell(`${rightColStart}${nameRowIndex}`);
+  rightName.value = "Ketut Sugiata";
+  rightName.font = fontName;
+  rightName.alignment = alignCenter;
+
+  // Sub-Jabatan Teknis paling bawah
+  const subRowIndex = nameRowIndex + 1;
+  const fontSub = { name: "Calibri", size: 10, color: { argb: "FF595959" } };
+
+  ws.mergeCells(`B${subRowIndex}:C${subRowIndex}`);
+  const leftSub = ws.getCell(`B${subRowIndex}`);
+  leftSub.value = "Admin Kredit";
+  leftSub.font = fontSub;
+  leftSub.alignment = alignCenter;
+
+  ws.mergeCells(`${midColStart}${subRowIndex}:${midColEnd}${subRowIndex}`);
+  const midSub = ws.getCell(`${midColStart}${subRowIndex}`);
+  midSub.value = "Head Bisnis";
+  midSub.font = fontSub;
+  midSub.alignment = alignCenter;
+
+  ws.mergeCells(`${rightColStart}${subRowIndex}:${rightColEnd}${subRowIndex}`);
+  const rightSub = ws.getCell(`${rightColStart}${subRowIndex}`);
+  rightSub.value = "Direktur Utama";
+  rightSub.font = fontSub;
+  rightSub.alignment = alignCenter;
+}
+
+// ==================== HELPER PERHITUNGAN DATA REKAP ====================
+function createInitialTotal() {
+  return {
+    jumlahDebitur: 0,
+    statusAktif: 0,
+    statusLunas: 0,
+    jaminanDiterima: 0,
+    jaminanDipinjam: 0,
+    jaminanPending: 0,
+    fileDiterima: 0,
+    fileDipinjam: 0,
+    filePending: 0,
+  };
+}
+
+function hitungStatusSubmissions(subs: ISubmission[], grandTotal: any) {
+  const row = {
+    aktif: 0,
+    lunas: 0,
+    jamDiterima: 0,
+    jamDipinjam: 0,
+    jamPending: 0,
+    fileDiterima: 0,
+    fileDipinjam: 0,
+    filePending: 0,
+    // Tambahkan akumulator baru di sini
+    flagging: 0,
+    pendingFlagging: 0,
+  };
+
+  grandTotal.jumlahDebitur += subs.length;
+
+  for (const s of subs) {
+    if (s.approve_status === "AKTIF") {
+      row.aktif++;
+      grandTotal.statusAktif++;
+    } else if (s.approve_status === "LUNAS") {
+      row.lunas++;
+      grandTotal.statusLunas++;
+    }
+
+    if (s.guarantee_status === "DITERIMA") {
+      row.jamDiterima++;
+      grandTotal.jaminanDiterima++;
+    } else if (s.guarantee_status === "DIPINJAM") {
+      row.jamDipinjam++;
+      grandTotal.jaminanDipinjam++;
+    } else if (s.guarantee_status === "PENDING") {
+      row.jamPending++;
+      grandTotal.jaminanPending++;
+    }
+
+    if (s.doc_status === "DITERIMA") {
+      row.fileDiterima++;
+      grandTotal.fileDiterima++;
+    } else if (s.doc_status === "DIPINJAM") {
+      row.fileDipinjam++;
+      grandTotal.fileDipinjam++;
+    } else if (s.doc_status === "PENDING") {
+      row.filePending++;
+      grandTotal.filePending++;
+    }
+
+    // Hitung status flagging nasabah pensiun (Sesuaikan string 'FLAGGING'/'PENDING' dengan data real API Anda)
+    if (s.flagging_status === "FLAGGING") {
+      row.flagging++;
+    } else if (s.flagging_status === "PENDING") {
+      row.pendingFlagging++;
+    }
+  }
+  return row;
 }

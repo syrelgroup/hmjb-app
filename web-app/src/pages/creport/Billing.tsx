@@ -8,17 +8,32 @@ import {
   message as antdMessage,
   Upload,
   Tag,
+  Select,
+  DatePicker,
+  Popover,
 } from "antd";
-import { Import, Plus, Trash } from "lucide-react";
+import { Edit, Filter, Import, Trash } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
-import type { IActionPage, IBilling, IPageProps } from "../../libs/interface";
+import type {
+  IActionPage,
+  IBilling,
+  IMitra,
+  IPageProps,
+  IProduct,
+} from "../../libs/interface";
 import type { HookAPI } from "antd/es/modal/useModal";
 import api from "../../libs/api";
 import useContext from "../../libs/context";
 import { IDRFormat } from "../utils/utilForm";
 import moment from "moment";
-import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
+import {
+  CloseOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { ExportData } from "../../libs/helper";
+import dayjs from "dayjs";
+const { RangePicker } = DatePicker;
 
 export default function DataBilling() {
   const [loading, setLoading] = useState(false);
@@ -29,6 +44,9 @@ export default function DataBilling() {
     total: 0,
     search: "",
     backdate: "",
+    mitraId: "",
+    productId: "",
+    bill_status: "",
   });
   const [action, setAction] = useState<IActionPage<IBilling>>({
     upsert: false,
@@ -36,6 +54,8 @@ export default function DataBilling() {
     process: false,
     record: undefined,
   });
+  const [mitras, setMitras] = useState<IMitra[]>([]);
+  const [products, setProducts] = useState<IProduct[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedRows, setSelectedRows] = useState<IBilling[]>([]);
   const [showProcess, setShowProcess] = useState(false);
@@ -54,6 +74,15 @@ export default function DataBilling() {
     }
     if (pageprops.backdate) {
       params.append("backdate", pageprops.backdate);
+    }
+    if (pageprops.productId) {
+      params.append("productId", pageprops.productId);
+    }
+    if (pageprops.mitraId) {
+      params.append("mitraId", pageprops.mitraId);
+    }
+    if (pageprops.bill_status) {
+      params.append("bill_status", pageprops.bill_status);
     }
     await api
       .request({
@@ -75,27 +104,48 @@ export default function DataBilling() {
       await getData();
     }, 200);
     return () => clearTimeout(timeout);
-  }, [pageprops.page, pageprops.limit, pageprops.search, pageprops.backdate]);
+  }, [
+    pageprops.page,
+    pageprops.limit,
+    pageprops.search,
+    pageprops.backdate,
+    pageprops.mitraId,
+    pageprops.productId,
+    pageprops.bill_status,
+  ]);
+
+  useEffect(() => {
+    (async () => {
+      await api
+        .request({
+          method: "GET",
+          url: "/mitra",
+          params: { limit: 10000 },
+        })
+        .then((res) => setMitras(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: "/producttype",
+        })
+        .then((res) =>
+          setProducts(res.data.data.flatMap((d: any) => d.Product)),
+        );
+    })();
+  }, []);
 
   const columns: TableProps<IBilling>["columns"] = [
-    {
-      title: "Select",
-      key: "select",
-      width: 50,
-      align: "center",
-      render(_value, _record) {
-        return null; // Menggunakan default checkbox dari table selection
-      },
-    },
     {
       title: "ID",
       key: "id",
       dataIndex: "id",
-      render(value, _record, index) {
+      render(_value, record, index) {
         return (
           <>
             <div>{(pageprops.page - 1) * pageprops.limit + index + 1}</div>
-            <div className="text-xs opacity-80">{value}</div>
+            <div className="text-xs opacity-80">
+              {record.Submission?.account_number}
+            </div>
           </>
         );
       },
@@ -104,6 +154,31 @@ export default function DataBilling() {
       title: "Nasabah",
       key: "name",
       dataIndex: "name",
+      render(_value, record) {
+        return (
+          <div>
+            <div>{record.name}</div>
+            <div className="text-xs opacity-80">
+              {record.Submission?.Debitur?.cif}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Mitra",
+      key: "mitra",
+      dataIndex: "mitra",
+      render(_value, record) {
+        return (
+          <div>
+            <div>{record.Mitra?.name}</div>
+            <div className="text-xs opacity-80">
+              {record.Submission?.Product?.name}
+            </div>
+          </div>
+        );
+      },
     },
     {
       title: "Nominal",
@@ -125,13 +200,7 @@ export default function DataBilling() {
       render(_value, record) {
         return (
           <div>
-            <div>Tagihan : {moment(record.bill_date).format("DD/MM/YYYY")}</div>
-            <div>
-              Realisasi :{" "}
-              {record.paid_date
-                ? moment(record.paid_date).format("DD/MM/YYYY")
-                : "-"}
-            </div>
+            <div> {moment(record.bill_date).format("DD/MM/YYYY")}</div>
           </div>
         );
       },
@@ -166,9 +235,9 @@ export default function DataBilling() {
       render(_value, record, _index) {
         return (
           <div className="flex items-center gap-1">
-            {hasAccess(window.location.pathname, "write") && (
+            {hasAccess(window.location.pathname, "update") && (
               <Button
-                icon={<Plus size={15} />}
+                icon={<Edit size={15} />}
                 size="small"
                 type="primary"
                 ghost
@@ -176,9 +245,7 @@ export default function DataBilling() {
                   setUpdateRecord(record);
                   setShowUpdate(true);
                 }}
-              >
-                Edit
-              </Button>
+              ></Button>
             )}
             {hasAccess(window.location.pathname, "delete") && (
               <Button
@@ -193,6 +260,104 @@ export default function DataBilling() {
       },
     },
   ];
+
+  const content = (
+    <div className="p-2 w-96 max-h-72 overflow-y-auto">
+      <div className="flex flex-col w-full">
+        <label className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
+          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+          Mitra
+        </label>
+        <Select
+          placeholder="Pilih mitra..."
+          className="w-full"
+          options={mitras.map((t) => ({ label: t.name, value: t.id }))}
+          onChange={(val) => setPageprops({ ...pageprops, mitraId: val })}
+          allowClear
+          value={pageprops.mitraId}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+      <div className="flex flex-col w-full">
+        <label className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+          Produk/Segmentasi
+        </label>
+        <Select
+          placeholder="Pilih produk/segmen..."
+          className="w-full"
+          options={products.map((t) => ({ label: t.name, value: t.id }))}
+          onChange={(val) => setPageprops({ ...pageprops, productId: val })}
+          allowClear
+          value={pageprops.productId}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+      <div className="flex flex-col w-full">
+        <label className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+          Status
+        </label>
+        <Select
+          placeholder="Pilih status..."
+          className="w-full"
+          options={[
+            { label: "BAYAR", value: "BAYAR" },
+            { label: "PARTIAL", value: "PARTIAL" },
+            { label: "BELUM BAYAR", value: "BELUMBAYAR" },
+          ]}
+          onChange={(val) => setPageprops({ ...pageprops, bill_status: val })}
+          allowClear
+          value={pageprops.bill_status}
+          optionFilterProp={"label"}
+          showSearch
+          size="small"
+        />
+      </div>
+
+      <div className="flex flex-col w-full">
+        <label className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
+          <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+          Periode Tanggal
+        </label>
+        <RangePicker
+          value={
+            pageprops.backdate && [
+              dayjs(pageprops.backdate[0]),
+              dayjs(pageprops.backdate[1]),
+            ]
+          }
+          onChange={(_date, datestr) =>
+            setPageprops({ ...pageprops, backdate: datestr })
+          }
+          size="small"
+          style={{ width: "100%" }}
+        />
+      </div>
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button
+          size="small"
+          danger
+          icon={<CloseOutlined />}
+          onClick={() =>
+            setPageprops({
+              ...pageprops,
+              backdate: "",
+              productId: "",
+              mitraId: "",
+            })
+          }
+        >
+          Reset Filter
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-2">
       {/* --- HEADER --- */}
@@ -257,9 +422,6 @@ export default function DataBilling() {
                     nominal_tagihan: d.value,
                     nominal_realisasi: d.realize_value,
                     tanggal_tagih: moment(d.bill_date).format("DD/MM/YYYY"),
-                    tanggal_tertagih: d.paid_date
-                      ? moment(d.paid_date).format("DD/MM/YYYY")
-                      : "-",
                     status: d.bill_status,
                   })),
                   "data_tagihan",
@@ -283,9 +445,28 @@ export default function DataBilling() {
                 setPageprops({ ...pageprops, search: e.target.value })
               }
             />
-            {/* <Button size="small">
-              <Filter size={14} /> Filter
-            </Button> */}
+            <Popover
+              content={content}
+              title="⚙️ Filter Data"
+              trigger="click"
+              placement="topRight"
+            >
+              <Button
+                size="small"
+                type={
+                  pageprops.mitraId ||
+                  pageprops.productId ||
+                  pageprops.status ||
+                  pageprops.backdate
+                    ? "primary"
+                    : "default"
+                }
+                icon={<Filter size={14} />}
+                className="flex items-center gap-1 text-sm"
+              >
+                Filter
+              </Button>
+            </Popover>
           </div>
         </div>
 
@@ -303,7 +484,7 @@ export default function DataBilling() {
           }}
           scroll={{
             x: "max-content",
-            y: window.innerWidth > 600 ? "53vh" : "65vh",
+            // y: window.innerWidth > 600 ? "53vh" : "65vh",
           }}
           columns={columns}
           dataSource={pageprops.data}
@@ -714,7 +895,6 @@ const UpdateData = ({
     value: record.value || 0,
     realize_value: record.realize_value || 0,
     bill_date: record.bill_date ? moment(record.bill_date) : moment(),
-    paid_date: record.paid_date ? moment(record.paid_date) : undefined,
     bill_status: record.bill_status || "BELUMBAYAR",
   });
 
@@ -729,9 +909,6 @@ const UpdateData = ({
           value: formData.value,
           realize_value: formData.realize_value,
           bill_date: formData.bill_date.toISOString(),
-          paid_date: formData.paid_date
-            ? formData.paid_date.toISOString()
-            : null,
           bill_status: formData.bill_status,
         },
         headers: { "Content-Type": "Application/json" },
@@ -832,25 +1009,6 @@ const UpdateData = ({
               setFormData({
                 ...formData,
                 bill_date: moment(e.target.value),
-              })
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Tanggal Pembayaran
-          </label>
-          <input
-            type="date"
-            value={
-              formData.paid_date ? formData.paid_date.format("YYYY-MM-DD") : ""
-            }
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                paid_date: e.target.value ? moment(e.target.value) : undefined,
               })
             }
             className="w-full px-3 py-2 border border-gray-300 rounded"

@@ -3,7 +3,7 @@ import { ResponseServer } from "../../libs/util.js";
 import prisma from "../../libs/prisma.js";
 import moment from "moment";
 export const GET = async (req, res, next) => {
-    let { page = 1, limit = 50, search, visitCategoryId, visitStatusId, visitPurposeId, approve_status, submissionTypeId, backdate, plan, } = req.query;
+    let { page = 1, limit = 50, search, visitCategoryId, visitStatusId, visitPurposeId, approve_status, submissionTypeId, mitraId, backdate, plan, } = req.query;
     page = Number(page);
     limit = Number(limit);
     const skip = (page - 1) * limit;
@@ -26,6 +26,7 @@ export const GET = async (req, res, next) => {
                 ],
             }),
             ...(visitCategoryId && { visitCategoryId: visitCategoryId }),
+            ...(mitraId && { mitraId: mitraId }),
             ...(visitStatusId && { visitStatusId: visitStatusId }),
             ...(visitPurposeId && { visitPurposeId: visitPurposeId }),
             ...(approve_status && {
@@ -59,6 +60,7 @@ export const GET = async (req, res, next) => {
                 VisitStatus: true,
                 VisitPurpose: true,
                 User: true,
+                Mitra: true,
             },
             skip: skip,
             take: limit,
@@ -89,7 +91,7 @@ export const GET = async (req, res, next) => {
 export const POST = async (req, res, next) => {
     let body = req.body;
     try {
-        const { id, VisitCategory, VisitStatus, VisitPurpose, User, Debitur, Submission, ...saved } = body;
+        const { id, VisitCategory, VisitStatus, VisitPurpose, User, Debitur, Submission, Mitra, ...saved } = body;
         const genId = await generateId();
         const genDebId = await generateDebiturId();
         Debitur.id = Debitur.id ? Debitur.id : genDebId;
@@ -133,7 +135,7 @@ export const PUT = async (req, res, next) => {
         });
         if (!find)
             return ResponseServer(res, 404, { msg: "Not found data" });
-        const { VisitCategory, VisitStatus, VisitPurpose, User, Debitur, ...saved } = body;
+        const { VisitCategory, VisitStatus, VisitPurpose, User, Debitur, Mitra, ...saved } = body;
         await prisma.$transaction(async (tx) => {
             const { SubmissionType, Visit, Submission, ...savedeb } = Debitur;
             const deb = await tx.debitur.update({

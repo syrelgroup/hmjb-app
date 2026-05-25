@@ -1,7 +1,8 @@
-import { App, Button, Card, Col, Divider, Row, Spin } from "antd";
+import { App, Button, Card, Col, Divider, message, Row, Spin } from "antd";
 import type {
   IComments,
   IDebitur,
+  IMitra,
   ISubType,
   IUser,
   IVisit,
@@ -25,6 +26,8 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
   const [visitStatuses, setVisitStatuses] = useState<IVisitStatus[]>([]);
   const [visitPurposes, setVisitPurposes] = useState<IVisitPurpose[]>([]);
   const [subType, setSubType] = useState<ISubType[]>([]);
+  const [Mitras, setMitras] = useState<IMitra[]>([]);
+
   const [users, setUsers] = useState<IUser[]>([]);
   const [search, setSearch] = useState("");
   const [dateErrors, setDateErrors] = useState<{ [key: string]: string }>({});
@@ -71,6 +74,13 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
           params: { limit: 1000 },
         })
         .then((res) => setUsers(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: "/mitra",
+          params: { limit: 1000 },
+        })
+        .then((res) => setMitras(res.data.data));
     })();
   }, []);
 
@@ -146,12 +156,12 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
             debiturId: res.data.data.id,
           }));
         } else {
-          alert(res.data.msg || "Data tidak ditemukan");
+          message.error("Data tidak ditemukan");
         }
       })
       .catch((err) => {
         console.log(err);
-        alert(err.message || "Internal Server Error");
+        message.error("Data tidak ditemukan");
       });
     setLoading(false);
   };
@@ -195,7 +205,7 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
         <Row gutter={[16, 16]}>
           <Col xs={12} md={8}>
             <InputUtil
-              label="CIF atau NIK"
+              label="CIF/NIK/Nama"
               type="text"
               value={search}
               onchage={(e: string) => setSearch(e)}
@@ -314,6 +324,22 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
               }}
               type="option"
               options={subType.map((s) => ({ label: s.name, value: s.id }))}
+            />
+          </Col>
+          <Col xs={12} md={8}>
+            <InputUtil
+              label="Mitra"
+              required
+              value={data.mitraId}
+              onchage={(e: string) => {
+                setData({
+                  ...data,
+                  Mitra: Mitras.find((m) => m.id === e) as IMitra,
+                  mitraId: e,
+                });
+              }}
+              type="option"
+              options={Mitras.map((s) => ({ label: s.name, value: s.id }))}
             />
           </Col>
         </Row>
@@ -716,9 +742,11 @@ const defaultData: IVisit = {
   VisitCategory: {} as IVisitCategory,
   VisitPurpose: {} as IVisitPurpose,
   VisitStatus: {} as IVisitStatus,
+  Mitra: {} as IMitra,
   visitCategoryId: "",
   visitStatusId: "",
   visitPurposeId: "",
+  mitraId: "",
 };
 
 const defaultComment: IComments = {

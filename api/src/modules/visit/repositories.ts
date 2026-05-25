@@ -14,6 +14,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
     visitPurposeId,
     approve_status,
     submissionTypeId,
+    mitraId,
     backdate,
     plan,
   } = req.query;
@@ -40,6 +41,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
         ],
       }),
       ...(visitCategoryId && { visitCategoryId: visitCategoryId as string }),
+      ...(mitraId && { mitraId: mitraId as string }),
       ...(visitStatusId && { visitStatusId: visitStatusId as string }),
       ...(visitPurposeId && { visitPurposeId: visitPurposeId as string }),
       ...(approve_status && {
@@ -74,6 +76,7 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
         VisitStatus: true,
         VisitPurpose: true,
         User: true,
+        Mitra: true,
       },
       skip: skip,
       take: limit,
@@ -113,6 +116,7 @@ export const POST = async (req: Request, res: Response, next: NextFunction) => {
       User,
       Debitur,
       Submission,
+      Mitra,
       ...saved
     } = body;
     const genId = await generateId();
@@ -165,6 +169,7 @@ export const PUT = async (req: Request, res: Response, next: NextFunction) => {
       VisitPurpose,
       User,
       Debitur,
+      Mitra,
       ...saved
     } = body;
 

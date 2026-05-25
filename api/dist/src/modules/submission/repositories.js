@@ -291,37 +291,65 @@ export const IMPORT = async (req, res, next) => {
         const jsonData = xlsx.utils.sheet_to_json(sheet);
         for (const data of jsonData) {
             await prisma.$transaction(async (tx) => {
+                const record = {
+                    jenis_pemohon: String(data.jenis_pemohon).trim(),
+                    tipe_produk: String(data.tipe_produk).trim(),
+                    produk: String(data.produk).trim(),
+                    cif: String(data.cif).trim(),
+                    nik: String(data.nik).trim(),
+                    nama_petugas: String(data.nama_petugas).trim(),
+                    nip_petugas: String(data.nip_petugas).trim(),
+                    nama: String(data.nama).trim(),
+                    tempat_lahir: String(data.tempat_lahir).trim(),
+                    tanggal_lahir: String(data.tanggal_lahir).trim(),
+                    alamat: String(data.alamat).trim(),
+                    no_telepon: String(data.no_telepon).trim(),
+                    email: String(data.email).trim(),
+                    nama_mitra: String(data.nama_mitra).trim(),
+                    kantor_bayar: String(data.kantor_bayar).trim(),
+                    asuransi: String(data.asuransi).trim(),
+                    nilai: String(data.nilai).trim(),
+                    tenor: String(data.tenor).trim(),
+                    no_lemari: String(data.no_lemari).trim(),
+                    tujuan_penggunaan: String(data.tujuan_penggunaan).trim(),
+                    status_nasabah: String(data.status_nasabah).trim(),
+                    status_dokumen: String(data.status_dokumen).trim(),
+                    status_jaminan: String(data.status_jaminan).trim(),
+                    status_flagging: String(data.status_flagging).trim(),
+                    no_rekening: String(data.no_rekening).trim(),
+                    tanggal_dibuat: String(data.tanggal_dibuat).trim(),
+                };
                 let typeDebt = await tx.submissionType.findFirst({
-                    where: { name: String(data.jenis_pemohon) },
+                    where: { name: record.jenis_pemohon },
                 });
                 if (!typeDebt) {
                     const genSubTypeId = await generateSubTypeId();
                     typeDebt = await tx.submissionType.create({
                         data: {
                             id: genSubTypeId,
-                            name: String(data.jenis_pemohon),
+                            name: record.jenis_pemohon,
                         },
                     });
                 }
                 let productType = await tx.productType.findFirst({
-                    where: { name: String(data.tipe_produk) },
+                    where: { name: record.tipe_produk },
                 });
                 if (!productType) {
                     const pTypeId = await generateProdTypeId();
                     productType = await tx.productType.create({
                         data: {
                             id: pTypeId,
-                            name: String(data.tipe_produk),
+                            name: record.tipe_produk,
                         },
                     });
                 }
                 let product = await tx.product.findFirst({
-                    where: { name: String(data.produk) },
+                    where: { name: record.produk },
                 });
                 if (!product) {
                     product = await tx.product.create({
                         data: {
-                            name: String(data.produk),
+                            name: record.produk,
                             productTypeId: productType.id,
                         },
                     });
@@ -329,8 +357,8 @@ export const IMPORT = async (req, res, next) => {
                 let usr = await tx.user.findFirst({
                     where: {
                         OR: [
-                            { nip: String(data.nip_petugas) },
-                            { fullname: String(data.nama_petugas) },
+                            { nip: record.nip_petugas },
+                            { fullname: record.nama_petugas },
                         ],
                     },
                 });
@@ -339,24 +367,21 @@ export const IMPORT = async (req, res, next) => {
                     usr = await tx.user.create({
                         data: {
                             id: usdId,
-                            fullname: String(data.nama_petugas),
-                            nip: String(data.nip_petugas),
-                            username: String(data.nama_petugas).toLowerCase(),
-                            password: String(data.nama_petugas).toLowerCase(),
+                            fullname: record.nama_petugas,
+                            nip: record.nip_petugas,
+                            username: record.nama_petugas.toLowerCase(),
+                            password: record.nama_petugas.toLowerCase(),
                             salary: 0,
                             absen_method: "BUTTON",
                             ptkp: "TK/0",
-                            roleId: "RL02",
-                            positionId: "POS02",
+                            roleId: "RL01",
+                            // positionId: "POS02",
                         },
                     });
                 }
                 let debt = await tx.debitur.findFirst({
                     where: {
-                        OR: [
-                            { cif: String(data.cif) },
-                            { nik: String(data.nik) },
-                        ],
+                        OR: [{ cif: record.cif }, { nik: record.nik }],
                     },
                 });
                 if (!debt) {
@@ -364,14 +389,14 @@ export const IMPORT = async (req, res, next) => {
                     debt = await tx.debitur.create({
                         data: {
                             id: genDebtId,
-                            cif: String(data.cif),
-                            nik: String(data.nik),
-                            fullname: String(data.nama),
-                            birthplace: String(data.tempat_lahir),
-                            birthdate: moment(data.tanggal_lahir, "DD/MM/YYYY").toDate(),
-                            address: String(data.alamat),
-                            phone: String(data.no_telepon),
-                            email: String(data.email),
+                            cif: record.cif,
+                            nik: record.nik,
+                            fullname: record.nama,
+                            birthplace: record.tempat_lahir,
+                            birthdate: moment(record.tanggal_lahir, "DD/MM/YYYY").toDate(),
+                            address: record.alamat,
+                            phone: record.no_telepon,
+                            email: record.email,
                             submissionTypeId: typeDebt.id,
                         },
                     });
@@ -379,7 +404,7 @@ export const IMPORT = async (req, res, next) => {
                 let mitra = null;
                 if (data.nama_mitra) {
                     const mitraFind = await tx.mitra.findFirst({
-                        where: { name: String(data.nama_mitra) },
+                        where: { name: record.nama_mitra },
                     });
                     if (mitraFind) {
                         mitra = mitraFind;
@@ -389,7 +414,7 @@ export const IMPORT = async (req, res, next) => {
                         mitra = await tx.mitra.create({
                             data: {
                                 id: mitId,
-                                name: String(data.nama_mitra),
+                                name: record.nama_mitra,
                             },
                         });
                     }
@@ -397,7 +422,7 @@ export const IMPORT = async (req, res, next) => {
                 let payOffice = null;
                 if (data.kantor_bayar) {
                     const kabay = await tx.payOffice.findFirst({
-                        where: { name: String(data.kantor_bayar) },
+                        where: { name: record.kantor_bayar },
                     });
                     if (kabay) {
                         payOffice = kabay;
@@ -407,7 +432,7 @@ export const IMPORT = async (req, res, next) => {
                         payOffice = await tx.payOffice.create({
                             data: {
                                 id: kbyId,
-                                name: String(data.kantor_bayar),
+                                name: record.kantor_bayar,
                             },
                         });
                     }
@@ -415,7 +440,7 @@ export const IMPORT = async (req, res, next) => {
                 let insur = null;
                 if (data.asuransi) {
                     const kabay = await tx.insurance.findFirst({
-                        where: { name: String(data.asuransi) },
+                        where: { name: record.asuransi },
                     });
                     if (kabay) {
                         insur = kabay;
@@ -425,7 +450,7 @@ export const IMPORT = async (req, res, next) => {
                         insur = await tx.insurance.create({
                             data: {
                                 id: insId,
-                                name: String(data.asuransi),
+                                name: record.asuransi,
                             },
                         });
                     }
@@ -438,19 +463,19 @@ export const IMPORT = async (req, res, next) => {
                         mitraId: mitra?.id,
                         insuranceId: insur?.id,
                         payOfficeId: payOffice?.id,
-                        value: parseInt(data.nilai || "0"),
-                        tenor: parseInt(data.tenor || "0"),
+                        value: parseInt(record.nilai || "0"),
+                        tenor: parseInt(record.tenor || "0"),
                         productId: product.id,
                         userId: usr.id,
                         createdById: usr.id,
-                        drawer_code: String(data.no_lemari) || "-",
-                        purpose: String(data.tujuan_penggunaan) || "-",
-                        approve_status: data.status_nasabah,
-                        doc_status: data.status_dokumen,
-                        guarantee_status: data.status_jaminan,
-                        flagging_status: data.status_flagging,
-                        account_number: String(data.no_rekening),
-                        created_at: moment(data.tanggal_dibuat, "DD/MM/YYYY").toDate(),
+                        drawer_code: record.no_lemari || "-",
+                        purpose: record.tujuan_penggunaan || "-",
+                        approve_status: record.status_nasabah,
+                        doc_status: record.status_dokumen,
+                        guarantee_status: record.status_jaminan,
+                        flagging_status: record.status_flagging,
+                        account_number: record.no_rekening || "-",
+                        created_at: moment(record.tanggal_dibuat, "DD/MM/YYYY").toDate(),
                     },
                 });
                 return true;

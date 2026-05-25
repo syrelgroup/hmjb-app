@@ -6,6 +6,7 @@ const upload = multer({ storage: storage });
 
 const router = Router();
 
+router.get("/laporan", BillingRoute.LAPORAN);
 router.get("/", BillingRoute.GET);
 router.post("/", upload.single("file"), BillingRoute.POST);
 router.put("/:id", BillingRoute.PUT);

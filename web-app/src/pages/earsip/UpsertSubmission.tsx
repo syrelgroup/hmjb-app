@@ -1,4 +1,14 @@
-import { App, Button, Card, Col, Divider, Row, Spin, Tooltip } from "antd";
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Divider,
+  message,
+  Row,
+  Spin,
+  Tooltip,
+} from "antd";
 import type {
   EArsipStatus,
   EDocStatus,
@@ -56,13 +66,13 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
       await api
         .request({
           method: "GET",
-          url: `${import.meta.env.VITE_API_URL}/sub_type`,
+          url: `${import.meta.env.VITE_API_URL}/sub_type?limit=10000`,
         })
         .then((res) => setSubType(res.data.data));
       await api
         .request({
           method: "GET",
-          url: `${import.meta.env.VITE_API_URL}/producttype`,
+          url: `${import.meta.env.VITE_API_URL}/producttype?limit=10000`,
         })
         .then((res) =>
           setProducts(
@@ -74,25 +84,25 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
       await api
         .request({
           method: "GET",
-          url: `${import.meta.env.VITE_API_URL}/user`,
+          url: `${import.meta.env.VITE_API_URL}/user?limit=10000`,
         })
         .then((res) => setUsers(res.data.data));
       await api
         .request({
           method: "GET",
-          url: `${import.meta.env.VITE_API_URL}/mitra`,
+          url: `${import.meta.env.VITE_API_URL}/mitra?limit=10000`,
         })
         .then((res) => setMitras(res.data.data));
       await api
         .request({
           method: "GET",
-          url: `${import.meta.env.VITE_API_URL}/pay_office`,
+          url: `${import.meta.env.VITE_API_URL}/pay_office?limit=10000`,
         })
         .then((res) => setPays(res.data.data));
       await api
         .request({
           method: "GET",
-          url: `${import.meta.env.VITE_API_URL}/insurance`,
+          url: `${import.meta.env.VITE_API_URL}/insurance?limit=10000`,
         })
         .then((res) => setInsc(res.data.data));
     })();
@@ -152,12 +162,12 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
             debiturId: res.data.data.id,
           }));
         } else {
-          alert(res.data.msg || "Data tidak ditemukan");
+          message.error(res.data.data.msg || "Internal Server Error");
         }
       })
       .catch((err) => {
         console.log(err);
-        alert(err.message || "Internal Server Error");
+        message.error(err.response.data.msg);
       });
     setLoading(false);
   };
@@ -594,32 +604,6 @@ export default function UpsertSubmission({ record }: { record?: ISubmission }) {
                   { label: "PENDING", value: "PENDING" },
                   { label: "FLAGGING", value: "FLAGGING" },
                   { label: "NON_PENSIUNAN", value: "NON_PENSIUNAN" },
-                ]}
-                type="option"
-              />
-            </Col>
-            <Col xs={12} md={8}>
-              <InputUtil
-                label="Status Jaminan"
-                required
-                value={data.guarantee_status}
-                onchage={(e: EDocStatus) => {
-                  setData({
-                    ...data,
-                    guarantee_status: e,
-                  });
-                  record &&
-                    handleChangeRecord(
-                      "edit Status Jaminan",
-                      activities,
-                      setActivities,
-                    );
-                }}
-                options={[
-                  { label: "PENDING", value: "PENDING" },
-                  { label: "DITERIMA", value: "DITERIMA" },
-                  { label: "DIPINJAM", value: "DIPINJAM" },
-                  { label: "DIKEMBALIKAN", value: "DIKEMBALIKAN" },
                 ]}
                 type="option"
               />

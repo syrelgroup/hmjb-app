@@ -31,116 +31,164 @@ import type {
 import api from "../../libs/api";
 import { IDRFormat } from "../utils/utilForm";
 
+interface IDashboardListItem {
+  id: string;
+  name: string;
+  count: number;
+}
+
+interface IProductTypeSummary {
+  id: string;
+  name: string;
+  submissionCount: number;
+  value: number;
+}
+
+interface IDashboardSummary {
+  totals: {
+    debitur: number;
+    submissions: number;
+    visits: number;
+    value: number;
+    productTypes: number;
+    submissionTypes: number;
+    visitCategories: number;
+    visitStatuses: number;
+    approvedSubmissions: number;
+    pendingSubmissions: number;
+    rejectedSubmissions: number;
+    approvedVisits: number;
+    pendingVisits: number;
+    rejectedVisits: number;
+    averageSubmissionValue: number;
+  };
+  breakdowns: {
+    submissionType: IDashboardListItem[];
+    productType: IProductTypeSummary[];
+    visitCategory: IDashboardListItem[];
+    visitStatus: IDashboardListItem[];
+    visitPurpose: IDashboardListItem[];
+    fileCategory: IDashboardListItem[];
+  };
+  topLists: {
+    submissionType: IDashboardListItem[];
+    visitCategory: IDashboardListItem[];
+    visitPurpose: IDashboardListItem[];
+    fileCategory: IDashboardListItem[];
+  };
+  growth: Array<{
+    name: string;
+    submissions: number;
+    visits: number;
+    approved: number;
+  }>;
+}
+
+type DashboardResponse = {
+  submissionType: ISubType[];
+  productType: IProductType[];
+  visitCategory: IVisitCategory[];
+  visitStatus: IVisitStatus[];
+  summary: IDashboardSummary;
+};
+
 const Dashboard = () => {
-  const [data, setData] = useState<{
-    submissionType: ISubType[];
-    productType: IProductType[];
-    visitCategory: IVisitCategory[];
-    visitStatus: IVisitStatus[];
-  }>({
+  const [data, setData] = useState<DashboardResponse>({
     submissionType: [],
     productType: [],
     visitCategory: [],
     visitStatus: [],
+    summary: {
+      totals: {
+        debitur: 0,
+        submissions: 0,
+        visits: 0,
+        value: 0,
+        productTypes: 0,
+        submissionTypes: 0,
+        visitCategories: 0,
+        visitStatuses: 0,
+        approvedSubmissions: 0,
+        pendingSubmissions: 0,
+        rejectedSubmissions: 0,
+        approvedVisits: 0,
+        pendingVisits: 0,
+        rejectedVisits: 0,
+        averageSubmissionValue: 0,
+      },
+      breakdowns: {
+        submissionType: [],
+        productType: [],
+        visitCategory: [],
+        visitStatus: [],
+        visitPurpose: [],
+        fileCategory: [],
+      },
+      topLists: {
+        submissionType: [],
+        visitCategory: [],
+        visitPurpose: [],
+        fileCategory: [],
+      },
+      growth: [],
+    },
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      await api
-        .request({
+    const fetchDashboard = async () => {
+      try {
+        const res = await api.request({
           method: "GET",
           url: `${import.meta.env.VITE_API_URL}/maindashboard`,
-        })
-        .then((res) => setData(res.data));
-    })();
+        });
+        setData(res.data);
+      } catch (error) {
+        console.error("Dashboard fetch failed", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
   }, []);
 
-  const totalDebitur = data.submissionType.flatMap((d) => d.Debitur).length;
-  const totalSubmission = data.productType.flatMap((pd) =>
-    pd.Product.flatMap((p) => p.Submission),
-  ).length;
-  const totalVisit = data.visitCategory.flatMap((d) => d.Visit).length;
-  const totalValue = data.productType
-    .flatMap((item) => item.Product.flatMap((pd) => pd.Submission))
-    .reduce((acc, submission) => acc + (submission?.value || 0), 0);
+  const summary = data.summary;
+  const totals = summary.totals;
+  const totalDebitur = totals.debitur;
+  const totalVisit = totals.visits;
+  const chartData = summary.growth;
 
-  // Generate real growth chart data from visits
-  const generateGrowthData = () => {
-    const allVisits = data.visitCategory.flatMap((d) => d.Visit) || [];
-    const allSubmissions =
-      data.productType.flatMap((pd) =>
-        pd.Product.flatMap((p) => p.Submission),
-      ) || [];
-
-    const now = new Date();
-    const weeks = [];
-
-    for (let i = 3; i >= 0; i--) {
-      // Tentukan rentang awal dan akhir minggu (7 hari per blok)
-      const start = new Date();
-      start.setDate(now.getDate() - (i + 1) * 7);
-      const end = new Date();
-      end.setDate(now.getDate() - i * 7);
-
-      // Filter data berdasarkan created_at (Pastikan backend mengirim field ini)
-      const weeklyVisits = allVisits.filter((v) => {
-        const d = new Date(v.created_at); // Sesuaikan nama field date dari DB Anda
-        return d >= start && d < end;
-      });
-
-      const weeklySubs = allSubmissions.filter((s) => {
-        const d = new Date(s?.created_at || new Date()); // Sesuaikan nama field date dari DB Anda
-        return d >= start && d < end;
-      });
-
-      weeks.push({
-        name: i === 0 ? "Minggu Ini" : `${i} Minggu Lalu`,
-        submissions: weeklySubs.length,
-        visits: weeklyVisits.length,
-      });
-    }
-    return weeks;
-  };
-
-  const chartData = generateGrowthData();
-
-  // Chart data for visit purposes
-  const visitPurposeData = data.visitCategory
-    .filter((cat) => cat.Visit.length > 0)
-    .map((cat) => ({
-      name: cat.name,
-      value: cat.Visit.length,
+  const visitPurposeData = summary.breakdowns.visitPurpose
+    .filter((item) => item.count > 0)
+    .map((item) => ({
+      name: item.name,
+      value: item.count,
     }));
 
-  // Chart data for file categories
-  const fileCategories = data.productType.flatMap((pt) => pt.ProductTypeFile);
-  const fileCategoryData = fileCategories
-    .filter((fc) => (fc.Files?.length || 0) > 0)
-    .map((fc) => ({
-      name: fc.name,
-      value: fc.Files?.length || 0,
+  const fileCategoryData = summary.breakdowns.fileCategory
+    .filter((item) => item.count > 0)
+    .map((item) => ({
+      name: item.name,
+      value: item.count,
     }));
 
-  // Chart data for visit status
-  const allVisits = data.visitCategory.flatMap((d) => d.Visit) || [];
-  const visitStatusData = [
-    {
-      name: "Disetujui",
-      value: allVisits.filter((v: any) => v.approve_status === "APPROVED")
-        .length,
-    },
-    {
-      name: "Ditolak",
-      value: allVisits.filter((v: any) => v.approve_status === "REJECTED")
-        .length,
-    },
-    {
-      name: "Pending",
-      value: allVisits.filter((v: any) => v.approve_status === "PENDING")
-        .length,
-    },
-  ].filter((d) => d.value > 0);
+  const visitStatusData = summary.breakdowns.visitStatus
+    .filter((item) => item.count > 0)
+    .map((item) => ({
+      name: item.name,
+      value: item.count,
+    }));
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 md:p-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-600 shadow-sm">
+          Memuat dashboard...
+        </div>
+      </div>
+    );
+  }
   const COLORS = [
     "#3b82f6",
     "#f97316",
@@ -169,10 +217,10 @@ const Dashboard = () => {
             </div>
             <p className="text-slate-600 text-sm font-medium">Total Debitur</p>
             <p className="text-3xl font-bold text-slate-900 mt-1">
-              {totalDebitur}
+              {totals.debitur}
             </p>
             <p className="text-xs text-slate-500 mt-2">
-              Dari {data.submissionType.length} jenis permohonan
+              Dari {totals.submissionTypes} jenis permohonan
             </p>
           </div>
         </div>
@@ -193,10 +241,10 @@ const Dashboard = () => {
               Total Permohonan
             </p>
             <p className="text-3xl font-bold text-slate-900 mt-1">
-              {totalSubmission}
+              {totals.submissions}
             </p>
             <p className="text-xs text-slate-500 mt-2">
-              Dari {data.productType.length} jenis produk
+              Dari {totals.productTypes} jenis produk
             </p>
           </div>
         </div>
@@ -217,10 +265,10 @@ const Dashboard = () => {
               Total Kunjungan
             </p>
             <p className="text-3xl font-bold text-slate-900 mt-1">
-              {totalVisit}
+              {totals.visits}
             </p>
             <p className="text-xs text-slate-500 mt-2">
-              Dari {data.visitCategory.length} kategori
+              Dari {totals.visitCategories} kategori
             </p>
           </div>
         </div>
@@ -239,10 +287,70 @@ const Dashboard = () => {
             </div>
             <p className="text-slate-600 text-sm font-medium">Total Nilai</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">
-              Rp {(totalValue / 1000000000).toFixed(1)}M
+              Rp {(totals.value / 1000000000).toFixed(1)}M
             </p>
             <p className="text-xs text-slate-500 mt-2">
-              {IDRFormat(totalValue)}
+              {IDRFormat(totals.value)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* --- MORE SUMMARY CARDS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-linear-to-br from-emerald-500 to-emerald-600 h-1"></div>
+          <div className="p-5">
+            <p className="text-slate-600 text-sm font-medium">
+              Permohonan Aktif
+            </p>
+            <p className="text-3xl font-bold text-slate-900 mt-1">
+              {totals.approvedSubmissions}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              dari {totals.submissions} permohonan total
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-linear-to-br from-amber-500 to-orange-600 h-1"></div>
+          <div className="p-5">
+            <p className="text-slate-600 text-sm font-medium">
+              Permohonan Pending
+            </p>
+            <p className="text-3xl font-bold text-slate-900 mt-1">
+              {totals.pendingSubmissions}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              status sedang diproses
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-linear-to-br from-red-500 to-rose-600 h-1"></div>
+          <div className="p-5">
+            <p className="text-slate-600 text-sm font-medium">
+              Permohonan Non-Aktif
+            </p>
+            <p className="text-3xl font-bold text-slate-900 mt-1">
+              {totals.rejectedSubmissions}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              permohonan tidak aktif atau selesai
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-linear-to-br from-sky-500 to-cyan-600 h-1"></div>
+          <div className="p-5">
+            <p className="text-slate-600 text-sm font-medium">
+              Rata-rata Nilai Permohonan
+            </p>
+            <p className="text-3xl font-bold text-slate-900 mt-1">
+              {IDRFormat(totals.averageSubmissionValue)}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              berdasarkan {totals.submissions} permohonan
             </p>
           </div>
         </div>

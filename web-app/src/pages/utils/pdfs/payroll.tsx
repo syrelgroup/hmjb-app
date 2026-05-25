@@ -62,7 +62,7 @@ const generate = (record: IUser) => {
           <div class="flex"><span class="w-28 text-gray-500">NIP</span><span class="mr-2">:</span><span class="text-gray-800">${record.nip}</span></div>
         </div>
         <div class="space-y-1">
-          <div class="flex"><span class="w-28 text-gray-500">Jabatan</span><span class="mr-2">:</span><span class="text-gray-800">${record.Position.name}</span></div>
+          <div class="flex"><span class="w-28 text-gray-500">Jabatan</span><span class="mr-2">:</span><span class="text-gray-800">${record.Position?.name}</span></div>
           <div class="flex"><span class="w-28 text-gray-500">Status PTKP</span><span class="mr-2">:</span><span class="text-gray-800 font-semibold">${record.ptkp}</span></div>
         </div>
       </div>

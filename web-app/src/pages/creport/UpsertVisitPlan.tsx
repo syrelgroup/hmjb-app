@@ -2,6 +2,7 @@ import { App, Button, Card, Col, Divider, Row, Spin } from "antd";
 import type {
   IComments,
   IDebitur,
+  IMitra,
   ISubmission,
   ISubType,
   IUser,
@@ -24,6 +25,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
   const [visitCategories, setVisitCategories] = useState<IVisitCategory[]>([]);
   const [visitPurposes, setVisitPurposes] = useState<IVisitPurpose[]>([]);
   const [subType, setSubType] = useState<ISubType[]>([]);
+  const [Mitras, setMitras] = useState<IMitra[]>([]);
   const [submissions, setSubmissions] = useState<ISubmission[]>(
     record ? record.Debitur.Submission : [],
   );
@@ -67,6 +69,13 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
           params: { limit: 1000 },
         })
         .then((res) => setUsers(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: "/mitra",
+          params: { limit: 1000 },
+        })
+        .then((res) => setMitras(res.data.data));
     })();
   }, []);
 
@@ -299,6 +308,21 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
               }}
               type="option"
               options={subType.map((s) => ({ label: s.name, value: s.id }))}
+            />
+          </Col>
+          <Col xs={12} md={8}>
+            <InputUtil
+              label="Mitra"
+              required
+              value={data.mitraId}
+              onchage={(e: string) => {
+                setData({
+                  ...data,
+                  Mitra: Mitras.find((m) => m.id === e) as IMitra,
+                });
+              }}
+              type="option"
+              options={Mitras.map((s) => ({ label: s.name, value: s.id }))}
             />
           </Col>
         </Row>
@@ -580,7 +604,8 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
               !data.Debitur?.submissionTypeId ||
               !data.Debitur?.birthdate ||
               !data.visitCategoryId ||
-              !data.userId
+              !data.userId ||
+              !data.mitraId
             }
           >
             Submit
@@ -611,6 +636,8 @@ const defaultData: IVisit = {
   Debitur: {} as IDebitur,
   User: {} as IUser,
   VisitCategory: {} as IVisitCategory,
+  Mitra: {} as IMitra,
+  mitraId: "",
   VisitPurpose: null,
   VisitStatus: null,
   visitCategoryId: "",

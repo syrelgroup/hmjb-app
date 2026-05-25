@@ -96,7 +96,7 @@ export interface IUser {
   face: string | null;
   photo: string | null;
   Role: IRole;
-  Position: IPosition;
+  Position: IPosition | null;
   Absence: IAbsence[];
   UserCost?: IUserCost[] | null;
   roleId: string;
@@ -209,8 +209,15 @@ export interface IBilling {
   realize_value: number;
   bill_status: "BAYAR" | "BELUMBAYAR" | "PARTIAL";
   bill_date: Date;
-  paid_date: Date;
   name: string | null;
+  Submission: ISubmission | null;
+  Mitra: IMitra | null;
+  User: IUser;
+  userId: string;
+  submissionId: string | null;
+  mitraId: string | null;
+  Product: IProduct | null;
+  productId: string | null;
 
   status: boolean;
   created_at: Date;
@@ -483,6 +490,8 @@ export interface IVisit {
   VisitStatus?: IVisitStatus | null; // Di schema Anda bernama 'Visit' (relation name)
   VisitPurpose?: IVisitPurpose | null; // Di schema Anda bernama 'Visit' (relation name)
   Submission?: ISubmission | null;
+  Mitra: IMitra;
+  mitraId: string;
   debiturId: string;
   userId: string;
   visitCategoryId: string;

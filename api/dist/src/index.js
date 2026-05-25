@@ -32,7 +32,8 @@ import gbookTypeRoute from "./modules/gbook_type/routes.js";
 import fileRoute from "./modules/file/routes.js";
 import logActivitiesRoute from "./modules/log-activities/routes.js";
 import collateralLendingRoute from "./modules/collateral_lending/routes.js";
-import { DashboardAbsensi, DashboardCallreport, DashboardEarsip, GET_HOLIDAY, MainDashboard, } from "./modules/route.js";
+import callreportRoute from "./modules/callreport/routes.js";
+import { DashboardAbsensi, DashboardCallreport, DashboardEarsip, GET_HOLIDAY, MainDashboard, LaporanCallreport, } from "./modules/route.js";
 import nodeCron from "node-cron";
 import { AlphaDaily } from "./modules/util.js";
 const app = express();
@@ -48,7 +49,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // Dashboard
 app.use("/maindashboard", middleware, MainDashboard);
-app.use("/callreport", middleware, DashboardCallreport);
+app.use("/callreport", middleware, callreportRoute);
 app.use("/absensi", middleware, DashboardAbsensi);
 app.use("/earsip", middleware, DashboardEarsip);
 app.use("/auth", authRoute);

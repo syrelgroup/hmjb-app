@@ -155,6 +155,7 @@ export const PATCH = async (req, res, next) => {
                     { id: id },
                     { nik: id },
                     { cif: id },
+                    { fullname: id },
                 ],
             },
             include: {

@@ -5,7 +5,6 @@ import {
   User,
   Menu,
   X,
-  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   Calendar,
@@ -17,8 +16,6 @@ import { Modal, Dropdown } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import AbsenceWidget from "./absensi/AbsenceWidget";
 // import HeaderAbsenceButton from "../components/HeaderAbsenceButton";
-
-const APP_COLOR = import.meta.env.VITE_APP_COLOR || "#F58220";
 
 export default function MainLayout({
   children,
@@ -67,17 +64,17 @@ export default function MainLayout({
           className={`p-6 flex items-center shrink-0 ${isCollapsed ? "justify-center" : "justify-between"}`}
         >
           <div className="flex items-center gap-3">
-            <div
-              style={{ backgroundColor: APP_COLOR }}
-              className="p-2 rounded-lg text-white shadow-lg shadow-orange-200 shrink-0"
-            >
-              <ShieldCheck size={20} />
-            </div>
-            {!isCollapsed && (
-              <span className="font-black text-lg tracking-tighter whitespace-nowrap">
-                <span className="text-orange-500">HASA</span>
-                <span className="text-green-600">MITRA</span>
-              </span>
+            {/* <div> */}
+            {/* <ShieldCheck size={20} /> */}
+            {/* </div> */}
+            {!isCollapsed ? (
+              // <span className="font-black text-lg tracking-tighter whitespace-nowrap">
+              //   <span className="text-orange-500">HASA</span>
+              //   <span className="text-green-600">MITRA</span>
+              // </span>
+              <img src="/assets/logo.png" width={150} />
+            ) : (
+              <img src="/assets/android-chrome-512x512.png" width={30} />
             )}
           </div>
 

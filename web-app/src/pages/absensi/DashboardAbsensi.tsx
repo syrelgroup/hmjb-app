@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import api from "../../libs/api";
-import { Users, Clock, TrendingUp, UserCheck, DollarSign } from "lucide-react";
+import {
+  Users,
+  Clock,
+  UserCheck,
+  UserX,
+  CalendarDays,
+  AlertTriangle,
+  Wallet,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -15,179 +23,272 @@ import {
   Cell,
 } from "recharts";
 
-// --- INTERFACES SIFAT DATA ---
-import type {
-  IUser,
-  IDeduction,
-  IInsentif,
-  IPermitAbsence,
-} from "../../libs/interface";
+import type { IUser, IPermitAbsence } from "../../libs/interface";
+import { calculatePayroll } from "../utils/libs"; // Impor fungsi formula terbaru Anda
 
 const COLORS = [
-  "#10b981",
-  "#f59e0b",
-  "#ff7849",
-  "#3b82f6",
-  "#ef4444",
-  "#8b5cf6",
-  "#64748b",
+  "#10b981", // Hadir Tepat Waktu
+  "#f59e0b", // Hadir (Terlambat)
+  "#ff7849", // Hadir (Pulang Cepat)
+  "#3b82f6", // Izin/Cuti
+  "#ef4444", // Alpha
 ];
+
+// Helper untuk standarisasi format YYYY-MM-DD
+const toYMD = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 export default function DashboardAbsensi() {
   const [loading, setLoading] = useState(false);
   const [dataPayload, setDataPayload] = useState<{
     users: IUser[];
-    deduction: IDeduction[];
-    insentif: IInsentif[];
     permit: IPermitAbsence[];
-  }>({ users: [], deduction: [], insentif: [], permit: [] });
+  }>({ users: [], permit: [] });
 
-  const [metrics, setMetrics] = useState({
+  const [metricsToday, setMetricsToday] = useState({
     totalEmployees: 0,
-    presentToday: 0,
-    lateToday: 0,
-    earlyLeaveToday: 0,
-    pendingPermits: 0,
-    totalGrossSalary: 0,
-    totalInsentif: 0,
-    totalDeduction: 0,
+    presentOnTime: 0,
+    presentLate: 0,
+    presentEarlyLeave: 0,
+    absent: 0,
+    onLeave: 0,
   });
 
-  const [attendanceBreakdown, setAttendanceBreakdown] = useState<any[]>([]);
-  const [payrollBreakdown, setPayrollBreakdown] = useState<any[]>([]);
+  const [metricsPeriod, setMetricsPeriod] = useState({
+    totalPresent: 0,
+    totalLate: 0,
+    totalAbsent: 0,
+  });
+
+  const [attendanceBreakdownToday, setAttendanceBreakdownToday] = useState<
+    any[]
+  >([]);
+  const [periodTrendData, setPeriodTrendData] = useState<any[]>([]);
+  const [financialSummary, setFinancialSummary] = useState<any[]>([]);
+  const [periodLabel, setPeriodLabel] = useState("");
+
+  const formatIDR = (num: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(num);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await api.get("/absensi");
       if (res?.data) {
-        const {
-          users = [],
-          deduction = [],
-          insentif = [],
-          permit = [],
-        } = res.data;
-        setDataPayload({ users, deduction, insentif, permit });
+        const { users = [], permit = [] } = res.data;
+        setDataPayload({ users, permit });
 
-        // ==================================================
-        // 1. METRIK OPERASIONAL UTAMA & FINANSIAL
-        // ==================================================
-        let present = 0;
-        let late = 0;
-        let earlyLeave = 0;
-        let totalGajiPokok = 0;
-        let akumulasiInsentif = 0;
-        let akumulasiPotongan = 0;
+        const now = new Date();
+        const todayYMD = toYMD(now);
 
-        // Hitung akumulasi insentif global yang berstatus aktif
-        insentif.forEach((i: IInsentif) => {
-          if (i.status) akumulasiInsentif += i.nominal || 0;
-        });
+        // =======================================================
+        // MENENTUKAN PERIODE CUT-OFF (TGL 21 HINGGA TGL 20)
+        // =======================================================
+        const currentDay = now.getDate();
+        let startYear = now.getFullYear();
+        let startMonth = now.getMonth();
+        let endYear = now.getFullYear();
+        let endMonth = now.getMonth();
 
-        // Hitung akumulasi potongan global
-        deduction.forEach((d: IDeduction) => {
-          if (d.status) akumulasiPotongan += d.nominal || 0;
-        });
+        if (currentDay > 20) {
+          endMonth = startMonth + 1;
+        } else {
+          startMonth = startMonth - 1;
+        }
 
-        // Buat map penampung distribusi status absensi
-        const attendanceMap: Record<string, number> = {
-          HADIR: 0,
+        const startDate = new Date(startYear, startMonth, 21);
+        const endDate = new Date(endYear, endMonth, 20);
+
+        setPeriodLabel(
+          `${startDate.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`,
+        );
+
+        let tOnTime = 0,
+          tLate = 0,
+          tEarlyLeave = 0,
+          tAbsent = 0,
+          tLeave = 0;
+        let mPresent = 0,
+          mLate = 0,
+          mAbsent = 0;
+
+        const todayMap: Record<string, number> = {
+          HADIR_TEPAT: 0,
           TERLAMBAT: 0,
           PULANG_CEPAT: 0,
-          CUTI: 0,
-          PERDIN: 0,
-          SAKIT: 0,
+          IZIN_CUTI: 0,
           ALPHA: 0,
         };
 
-        users.forEach((u: IUser) => {
-          totalGajiPokok += u.salary || 0;
-
-          // Periksa record absensi terakhir
-          if (u.Absence && u.Absence.length > 0) {
-            const latestAbsence = u.Absence[u.Absence.length - 1];
-            let status = latestAbsence.absence_status;
-            const desc = (latestAbsence.description || "").toUpperCase();
-
-            // PENGKONDISIAN STRUKTURAL BERDASARKAN DESCRIPTION
-            if (desc.includes("TERLAMBAT")) {
-              status = "TERLAMBAT";
-              late++;
-            } else if (
-              desc.includes("PULANG_CEPAT") ||
-              desc.includes("PULANG CEPAT")
-            ) {
-              status = "PULANG_CEPAT";
-              earlyLeave++;
-            }
-
-            // Hitung total kehadiran fisik (Hadir, Terlambat, maupun Pulang Cepat tetap terhitung absen masuk)
-            if (["HADIR", "TERLAMBAT", "PULANG_CEPAT"].includes(status)) {
-              present++;
-            }
-
-            if (attendanceMap[status] !== undefined) {
-              attendanceMap[status]++;
-            } else {
-              // Fallback jika status custom/tidak terdaftar masuk ke HADIR
-              attendanceMap["HADIR"]++;
-            }
-
-            // Tambahkan nominal denda finansial dari logs internal absensi
-            akumulasiPotongan +=
-              (latestAbsence.late_deduction || 0) +
-              (latestAbsence.fast_leave_deduction || 0) +
-              (latestAbsence.alpha_deduction || 0);
-
-            // Tambahkan lemburan ke dana penambah
-            akumulasiInsentif += latestAbsence.lemburan || 0;
-          } else {
-            attendanceMap["ALPHA"]++;
+        // Buat kerangka peta periode (21 - 20) untuk grafik
+        const periodMap: Record<
+          string,
+          {
+            date: string;
+            fullDate: string;
+            Hadir: number;
+            Terlambat: number;
+            Absen: number;
           }
+        > = {};
+        let cursor = new Date(startDate);
+        while (cursor <= endDate) {
+          const dateStr = toYMD(cursor);
+          const label = `${String(cursor.getDate()).padStart(2, "0")}/${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+          periodMap[dateStr] = {
+            date: label,
+            fullDate: dateStr,
+            Hadir: 0,
+            Terlambat: 0,
+            Absen: 0,
+          };
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        const userFinances: any[] = [];
+
+        users.forEach((u: IUser) => {
+          // 1. Jalankan fungsi perhitungan formula terbaru
+          const payroll = calculatePayroll(u);
+
+          // Gunakan hasil rekap absensi terpusat dari core library agar sinkron
+          mPresent += payroll.hadir?.length || 0;
+          mAbsent += payroll.alpha?.length || 0;
+
+          let hasTodayRecord = false;
+
+          if (u.Absence && u.Absence.length > 0) {
+            u.Absence.forEach((abs: any) => {
+              const absDateStrRaw =
+                abs.created_at || abs.check_in || new Date().toISOString();
+              const absDateObj = new Date(absDateStrRaw);
+              const absYMD = toYMD(absDateObj);
+
+              const baseStatus = abs.absence_status || "ALPHA";
+              const desc = (abs.description || "").toUpperCase();
+
+              let isLate = false;
+              let isEarlyLeave = false;
+              if (baseStatus === "HADIR") {
+                if (desc.includes("TERLAMBAT")) isLate = true;
+                if (
+                  desc.includes("PULANG_CEPAT") ||
+                  desc.includes("PULANG CEPAT")
+                )
+                  isEarlyLeave = true;
+              }
+
+              // Kalkulasi Tren Grafik Periode Aktif
+              if (periodMap[absYMD]) {
+                if (baseStatus === "HADIR") {
+                  if (isLate) {
+                    periodMap[absYMD].Terlambat++;
+                    mLate++;
+                  } else {
+                    periodMap[absYMD].Hadir++;
+                  }
+                } else if (
+                  !["CUTI", "SAKIT", "PERDIN", "IZIN"].includes(baseStatus)
+                ) {
+                  periodMap[absYMD].Absen++;
+                }
+              }
+
+              // Kalkulasi Data Real-time HARI INI
+              if (absYMD === todayYMD) {
+                hasTodayRecord = true;
+                if (baseStatus === "HADIR") {
+                  if (isLate) {
+                    tLate++;
+                    todayMap["TERLAMBAT"]++;
+                  } else if (isEarlyLeave) {
+                    tEarlyLeave++;
+                    todayMap["PULANG_CEPAT"]++;
+                  } else {
+                    tOnTime++;
+                    todayMap["HADIR_TEPAT"]++;
+                  }
+                } else if (
+                  ["CUTI", "SAKIT", "PERDIN", "IZIN"].includes(baseStatus)
+                ) {
+                  tLeave++;
+                  todayMap["IZIN_CUTI"]++;
+                } else {
+                  tAbsent++;
+                  todayMap["ALPHA"]++;
+                }
+              }
+            });
+          }
+
+          if (!hasTodayRecord) {
+            tAbsent++;
+            todayMap["ALPHA"]++;
+          }
+
+          // 2. Satukan komponen finansial dengan Formula TER & Rekap Potongan Absen Baru
+          const totalInsentif =
+            payroll.allowancePay + payroll.insentifPay + payroll.lemburPay;
+          const totalPotongan =
+            payroll.deductionPay +
+            payroll.tt_deductionPay +
+            payroll.latePay +
+            payroll.fastLeaveDeduction +
+            payroll.alphaPay +
+            payroll.pph; // Termasuk pajak PPh 21 TER
+
+          userFinances.push({
+            id: u.id,
+            name: u.fullname,
+            position: u.Position?.name || "-",
+            salary: u.salary || 0,
+            insentif: totalInsentif,
+            potongan: totalPotongan,
+            pph: payroll.pph,
+            kategoriTER: payroll.kategoriTER,
+            tarifTER: payroll.tarifTER,
+            net: payroll.takeHome, // Sesuai THP akhir rumus
+            permitCount: payroll.permitCount,
+            permitApproved: payroll.permitApproved,
+          });
         });
 
-        const pendingApprovalPermits = permit.filter(
-          (p: IPermitAbsence) => p.permit_status === "PENDING",
-        ).length;
+        userFinances.sort((a, b) => b.net - a.net);
+        setFinancialSummary(userFinances);
 
-        setMetrics({
+        setMetricsToday({
           totalEmployees: users.length,
-          presentToday: present,
-          lateToday: late,
-          earlyLeaveToday: earlyLeave,
-          pendingPermits: pendingApprovalPermits,
-          totalGrossSalary: totalGajiPokok,
-          totalInsentif: akumulasiInsentif,
-          totalDeduction: akumulasiPotongan,
+          presentOnTime: tOnTime,
+          presentLate: tLate,
+          presentEarlyLeave: tEarlyLeave,
+          absent: tAbsent,
+          onLeave: tLeave,
         });
 
-        // Format data untuk Pie Chart Absensi (Hanya masukkan yang jumlahnya > 0)
-        setAttendanceBreakdown(
-          Object.entries(attendanceMap)
+        setMetricsPeriod({
+          totalPresent: mPresent,
+          totalLate: mLate,
+          totalAbsent: mAbsent,
+        });
+
+        setAttendanceBreakdownToday(
+          Object.entries(todayMap)
             .filter(([_, qty]) => qty > 0)
-            .map(([name, qty]) => ({ name, value: qty })),
+            .map(([name, qty]) => ({
+              name: name.replace("_", " "),
+              value: qty,
+            })),
         );
 
-        // ==================================================
-        // 2. FORMULASI GRAFIK BATANG PAYROLL per KARYAWAN
-        // ==================================================
-        const topStaffPayroll = users.slice(0, 5).map((u: IUser) => {
-          let userInsentif = 0;
-          let userDeduction = 0;
-
-          u.UserCost?.forEach((cost) => {
-            if (cost.type === "PENAMBAHAN") userInsentif += cost.nominal;
-            if (cost.type === "PENGURANGAN") userDeduction += cost.nominal;
-          });
-
-          return {
-            name: u.fullname.split(" ")[0],
-            "Gaji Pokok": u.salary,
-            "Bonus/Insentif": userInsentif,
-            Potongan: userDeduction,
-          };
-        });
-        setPayrollBreakdown(topStaffPayroll);
+        setPeriodTrendData(Object.values(periodMap));
       }
     } catch (err) {
       console.error("Gagal memuat data analisis dashboard absensi:", err);
@@ -200,19 +301,12 @@ export default function DashboardAbsensi() {
     fetchData();
   }, []);
 
-  const formatIDR = (num: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(num);
-
   if (loading) {
     return (
       <div className="p-6 h-96 flex flex-col items-center justify-center text-slate-500 gap-2">
         <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm font-medium">
-          Sinkronisasi data absensi & payroll deskripsi...
+          Sinkronisasi Formula & Laporan Pajak TER...
         </p>
       </div>
     );
@@ -220,29 +314,31 @@ export default function DashboardAbsensi() {
 
   return (
     <div className="p-6 space-y-6 bg-slate-50/50 min-h-screen">
-      {/* HEADER DASHBOARD */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-slate-800">
-            Dashboard Monitor Absensi & Kompensasi
+            Dashboard Laporan Absensi & Anggaran
           </h2>
           <p className="text-xs text-slate-400">
-            Analisis presensi terintegrasi deteksi status terlambat via log
-            deskripsi
+            Periode aktif:{" "}
+            <span className="font-semibold text-indigo-500">{periodLabel}</span>{" "}
+            (Siklus Tgl 21 - 20)
           </p>
         </div>
       </div>
 
-      {/* --- ROW 1: METRICS UTAMA --- */}
+      {/* --- METRIK HARI INI --- */}
+      <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 pt-2">
+        <Clock className="w-4 h-4 text-indigo-500" /> Ringkasan Absensi Hari Ini
+      </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-400 uppercase">
-              Total Karyawan
+              Karyawan Aktif
             </p>
             <h3 className="text-2xl font-bold text-slate-800">
-              {metrics.totalEmployees}{" "}
-              <span className="text-xs text-slate-400 font-normal">Aktif</span>
+              {metricsToday.totalEmployees}
             </h3>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
@@ -253,12 +349,14 @@ export default function DashboardAbsensi() {
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-400 uppercase">
-              Presensi Masuk
+              Total Hadir
             </p>
             <h3 className="text-2xl font-bold text-emerald-600">
-              {metrics.presentToday}{" "}
+              {metricsToday.presentOnTime +
+                metricsToday.presentLate +
+                metricsToday.presentEarlyLeave}{" "}
               <span className="text-xs text-amber-500 font-medium">
-                ({metrics.lateToday} Tlk / {metrics.earlyLeaveToday} PC)
+                ({metricsToday.presentLate} Tlk)
               </span>
             </h3>
           </div>
@@ -270,61 +368,60 @@ export default function DashboardAbsensi() {
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-400 uppercase">
-              Pengajuan Izin
+              Izin / Cuti
             </p>
-            <h3 className="text-2xl font-bold text-amber-600">
-              {metrics.pendingPermits}{" "}
-              <span className="text-xs text-slate-400 font-normal">
-                Pending
-              </span>
+            <h3 className="text-2xl font-bold text-blue-600">
+              {metricsToday.onLeave}
             </h3>
           </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-            <Clock className="w-5 h-5" />
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <CalendarDays className="w-5 h-5" />
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-400 uppercase">
-              Alokasi Gaji (Net)
+              Alpha
             </p>
-            <h3 className="text-xl font-bold text-slate-800">
-              {formatIDR(
-                metrics.totalGrossSalary +
-                  metrics.totalInsentif -
-                  metrics.totalDeduction,
-              )}
+            <h3 className="text-2xl font-bold text-red-600">
+              {metricsToday.absent}
             </h3>
           </div>
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-            <DollarSign className="w-5 h-5" />
+          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+            <UserX className="w-5 h-5" />
           </div>
         </div>
       </div>
 
-      {/* --- ROW 2: GRAPHICAL VIEWS --- */}
+      {/* --- GRAFIK TREN & DISTRIBUSI --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Struktur Payroll Staff */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-800">
-                Struktur Kompensasi Karyawan (Sampel)
+                Tren Kehadiran Periode Aktif
               </h3>
               <p className="text-xs text-slate-400">
-                Komparasi Gaji Pokok, Insentif tambahan, dan Potongan
+                Statistik akumulasi kehadiran dalam siklus berjalan
               </p>
             </div>
-            <div className="p-2 bg-slate-50 rounded-lg text-slate-400">
-              <TrendingUp className="w-4 h-4" />
+            <div className="flex gap-4 text-xs font-medium text-slate-500">
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>{" "}
+                Hadir: {metricsPeriod.totalPresent}
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>{" "}
+                Terlambat: {metricsPeriod.totalLate}
+              </div>
             </div>
           </div>
           <div className="w-full h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={payrollBreakdown}
-                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                data={periodTrendData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -332,72 +429,96 @@ export default function DashboardAbsensi() {
                   vertical={false}
                 />
                 <XAxis
-                  dataKey="name"
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  fontSize={10}
+                  tickLine={false}
+                  minTickGap={5}
+                />
+                <YAxis
                   stroke="#94a3b8"
                   fontSize={11}
                   tickLine={false}
+                  allowDecimals={false}
                 />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <Tooltip formatter={(value) => formatIDR(Number(value))} />
+                <Tooltip
+                  cursor={{ fill: "#f8fafc" }}
+                  labelFormatter={(label) => `Tanggal: ${label}`}
+                />
                 <Legend
                   wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
                 />
-                <Bar dataKey="Gaji Pokok" fill="#3b82f6" stackId="a" />
                 <Bar
-                  dataKey="Bonus/Insentif"
+                  dataKey="Hadir"
                   fill="#10b981"
+                  radius={[2, 2, 0, 0]}
                   stackId="a"
-                  radius={[4, 4, 0, 0]}
                 />
-                <Bar dataKey="Potongan" fill="#ef4444" />
+                <Bar
+                  dataKey="Terlambat"
+                  fill="#f59e0b"
+                  radius={[2, 2, 0, 0]}
+                  stackId="a"
+                />
+                <Bar
+                  dataKey="Absen"
+                  name="Alpha"
+                  fill="#ef4444"
+                  radius={[2, 2, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Pie Chart Proporsi Kehadiran */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-800">
-              Proporsi Kehadiran Hari Ini
+              Status Hari Ini
             </h3>
             <p className="text-xs text-slate-400">
-              Peta sebaran status absensi dinamis (Hadir, Terlambat, Pulang
-              Cepat)
+              Proporsi distribusi data kehadiran real-time
             </p>
           </div>
-          <div className="w-full h-40 flex items-center justify-center my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={attendanceBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={65}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {attendanceBreakdown.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="w-full h-48 flex items-center justify-center my-2">
+            {attendanceBreakdownToday.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={attendanceBreakdownToday}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {attendanceBreakdownToday.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-slate-300 flex flex-col items-center gap-2">
+                <AlertTriangle className="w-8 h-8" />
+                <span className="text-xs">Belum ada presensi</span>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2 border-t pt-3 border-slate-100 text-[11px] text-slate-500 font-medium">
-            {attendanceBreakdown.map((item, idx) => (
+            {attendanceBreakdownToday.map((item, idx) => (
               <div key={idx} className="flex items-center gap-1.5 truncate">
                 <span
                   className="w-2 h-2 rounded-full inline-block shrink-0"
                   style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                 ></span>
                 <span className="truncate">
-                  {item.name}: <b>{item.value} Staff</b>
+                  {item.name}: <b>{item.value}</b>
                 </span>
               </div>
             ))}
@@ -405,80 +526,73 @@ export default function DashboardAbsensi() {
         </div>
       </div>
 
-      {/* --- ROW 3: LOGS DATA LIST --- */}
+      {/* --- TABEL SINKRONISASI FINANSIAL & PERMIT --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Logs Real-time Status */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+        {/* Rekapitulasi Tunjangan & Potongan Berdasarkan Perhitungan Terbaru */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
           <div className="mb-4">
-            <h3 className="text-sm font-bold text-slate-800">
-              Log Aktivitas Real-time Karyawan
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-indigo-500" /> Estimasi Beban
+              Finansial & TER Pajak
             </h3>
-            <p className="text-xs text-slate-400">
-              Logs status pemicu keterlambatan & pulang cepat via deskripsi
+            <p className="text-xs text-slate-400 mt-1">
+              Akumulasi akurat berdasarkan potongan keterlambatan, denda alpa
+              harian, serta PPh 21 TER.
             </p>
           </div>
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
-                  <th className="py-3 px-2">Karyawan</th>
-                  <th className="py-3 px-2">Jabatan</th>
-                  <th className="py-3 px-2">Keterangan / Notes</th>
-                  <th className="py-3 px-2 font-medium">Gaji Pokok</th>
-                  <th className="py-3 px-2 text-center">Status Akhir</th>
+                  <th className="py-3 px-2">Karyawan / Posisi</th>
+                  <th className="py-3 px-2 text-right">Gaji Pokok</th>
+                  <th className="py-3 px-2 text-right text-emerald-500">
+                    Tunj. + Lembur
+                  </th>
+                  <th className="py-3 px-2 text-right text-rose-500">
+                    Pot. + TER Pajak
+                  </th>
+                  <th className="py-3 px-2 text-right font-bold text-slate-700">
+                    Take Home Pay
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 text-slate-600">
-                {dataPayload.users.slice(0, 5).map((u) => {
-                  const latestAbs = u.Absence?.[u.Absence.length - 1];
-                  const rawStatus = latestAbs?.absence_status || "ALPHA";
-                  const notes = latestAbs?.description || "-";
-
-                  // Hitung ulang penanda warna label status list row
-                  let finalStatusLabel = rawStatus;
-                  if (notes.toUpperCase().includes("TERLAMBAT"))
-                    finalStatusLabel = "TERLAMBAT";
-                  if (
-                    notes.toUpperCase().includes("PULANG_CEPAT") ||
-                    notes.toUpperCase().includes("PULANG CEPAT")
-                  )
-                    finalStatusLabel = "PULANG_CEPAT";
-
-                  return (
-                    <tr
-                      key={u.id}
-                      className="hover:bg-slate-50/80 transition-colors"
-                    >
-                      <td className="py-2.5 px-2 font-medium text-slate-800">
-                        {u.fullname}
-                      </td>
-                      <td className="py-2.5 px-2 text-slate-400">
-                        {u.Position?.name || "Staff"}
-                      </td>
-                      <td className="py-2.5 px-2 italic text-slate-500 max-w-45 truncate">
-                        {notes}
-                      </td>
-                      <td className="py-2.5 px-2 font-medium">
-                        {formatIDR(u.salary)}
-                      </td>
-                      <td className="py-2.5 px-2 text-center">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            finalStatusLabel === "HADIR"
-                              ? "bg-emerald-50 text-emerald-600"
-                              : finalStatusLabel === "TERLAMBAT"
-                                ? "bg-amber-50 text-amber-600"
-                                : finalStatusLabel === "PULANG_CEPAT"
-                                  ? "bg-orange-50 text-orange-600"
-                                  : "bg-red-50 text-red-600"
-                          }`}
-                        >
-                          {finalStatusLabel}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {financialSummary.slice(0, 10).map((u) => (
+                  <tr
+                    key={u.id}
+                    className="hover:bg-slate-50/80 transition-colors"
+                  >
+                    <td className="py-3 px-2">
+                      <div className="font-medium text-slate-800">{u.name}</div>
+                      <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                        <span>{u.position}</span>
+                        {u.permitCount > 0 && (
+                          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded text-[9px] font-medium">
+                            Izin: {u.permitApproved}/{u.permitCount}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-2 text-right">
+                      {formatIDR(u.salary)}
+                    </td>
+                    <td className="py-3 px-2 text-right text-emerald-600 font-medium">
+                      + {formatIDR(u.insentif)}
+                    </td>
+                    <td className="py-3 px-2 text-right text-rose-600 font-medium">
+                      <div>- {formatIDR(u.potongan)}</div>
+                      {u.pph > 0 && (
+                        <div className="text-[9px] text-slate-400 font-normal">
+                          Inc. PPh21 (Kat {u.kategoriTER}-{u.tarifTER})
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-2 text-right font-bold text-slate-900 bg-slate-50/30 font-mono">
+                      {formatIDR(u.net)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -488,19 +602,19 @@ export default function DashboardAbsensi() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
           <div className="mb-4">
             <h3 className="text-sm font-bold text-slate-800">
-              Pengajuan Berkas Izin
+              Pengajuan Izin & Cuti
             </h3>
             <p className="text-xs text-slate-400">
-              Verifikasi dokumen ketidakhadiran karyawan lapangan
+              Berkas perizinan masuk dalam siklus berjalan
             </p>
           </div>
-          <div className="space-y-3 overflow-y-auto max-h-60 pr-1">
+          <div className="space-y-3 overflow-y-auto max-h-[350px] pr-1">
             {dataPayload.permit.length === 0 ? (
               <div className="text-center py-8 text-xs text-slate-400 font-medium">
-                Tidak ada berkas perizinan masuk.
+                Belum ada pengajuan izin/cuti.
               </div>
             ) : (
-              dataPayload.permit.slice(0, 4).map((p) => (
+              dataPayload.permit.slice(0, 5).map((p) => (
                 <div
                   key={p.id}
                   className="p-3 bg-slate-50/60 hover:bg-slate-50 border border-slate-100 rounded-xl flex flex-col gap-1 transition-colors"
@@ -520,10 +634,12 @@ export default function DashboardAbsensi() {
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 line-clamp-1">
-                    {p.description || "Tanpa deskripsi alasan"}
+                    {p.description || "Tanpa deskripsi"}
                   </p>
                   <div className="text-[10px] text-slate-400 flex justify-between pt-1">
-                    <span>ID User: {p.userId.substring(0, 8)}...</span>
+                    <span>
+                      Oleh: {p.User?.fullname || p.userId.substring(0, 8)}
+                    </span>
                     <span>
                       {p.start_date
                         ? new Date(p.start_date).toLocaleDateString("id-ID")

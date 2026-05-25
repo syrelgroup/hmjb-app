@@ -32,13 +32,6 @@ interface IBilling {
   realize_value: number;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  "Sudah Bayar": "#10b981",
-  Partial: "#f59e0b",
-  "Belum Bayar": "#ef4444",
-};
-
-// Palet warna variatif untuk segmentasi Pie Chart Distribusi Kunjungan
 const PIE_COLORS = [
   "#0ea5e9",
   "#6366f1",
@@ -71,13 +64,13 @@ export default function DashboardCallReport() {
     billingUnpaidCount: 0,
   });
 
-  const [billingBreakdown, setBillingBreakdown] = useState<any[]>([]);
   const [trendData, setTrendData] = useState<any[]>([]);
 
   // State untuk Pie Chart Distribusi + Detail Finansialnya
   const [visitStatusDist, setVisitStatusDist] = useState<any[]>([]);
   const [visitPurposeDist, setVisitPurposeDist] = useState<any[]>([]);
   const [visitCategoryDist, setVisitCategoryDist] = useState<any[]>([]);
+  const [visitMitraDist, setVisitMitraDist] = useState<any[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -127,18 +120,12 @@ export default function DashboardCallReport() {
 
           billingPaidRealize: paidRealize,
           billingPartialRealize: partialRealize,
-          billingUnpaidRealize: unpaidRealize, // Sudah diperbaiki dari typo sebelumnya (unpaidUnize)
+          billingUnpaidRealize: unpaidRealize,
 
           billingPaidCount: paidCount,
           billingPartialCount: partialCount,
           billingUnpaidCount: unpaidCount,
         });
-
-        setBillingBreakdown([
-          { name: "Sudah Bayar", value: paidCount },
-          { name: "Partial", value: partialCount },
-          { name: "Belum Bayar", value: unpaidCount },
-        ]);
 
         // ==========================================
         // 2. OLAH TREN KUNJUNGAN 7 HARI TERAKHIR
@@ -176,17 +163,18 @@ export default function DashboardCallReport() {
         );
 
         // ==========================================
-        // 3. GROUPING DATA VISIT + FINANSIAL (AMMAN DARI TS OVERWRITE)
+        // 3. GROUPING DATA VISIT + FINANSIAL
         // ==========================================
         interface IDistItem {
           count: number;
-          billingValue: number; // Ubah nama agar tidak bentrok dengan 'value' Recharts
+          billingValue: number;
           realizeValue: number;
         }
 
         const statusMap: Record<string, IDistItem> = {};
         const purposeMap: Record<string, IDistItem> = {};
         const categoryMap: Record<string, IDistItem> = {};
+        const mitraMap: Record<string, IDistItem> = {};
 
         const allVisits = [...visit, ...visit_plan];
 
@@ -194,8 +182,8 @@ export default function DashboardCallReport() {
           const statusName = v.VisitStatus?.name || "Tanpa Status";
           const purposeName = v.VisitPurpose?.name || "Tanpa Tujuan";
           const categoryName = v.VisitCategory?.name || "Tanpa Kategori";
+          const mitraName = v.Submission?.Mitra?.name || "Tanpa Mitra";
 
-          // Mengambil nominal dari data billing yang menempel di objek visit jika ada
           const itemValue = v.value || 0;
           const itemRealize = v.realize_value || 0;
 
@@ -228,14 +216,35 @@ export default function DashboardCallReport() {
           categoryMap[categoryName].count += 1;
           categoryMap[categoryName].billingValue += itemValue;
           categoryMap[categoryName].realizeValue += itemRealize;
+
+          if (!mitraMap[mitraName])
+            mitraMap[mitraName] = {
+              count: 0,
+              billingValue: 0,
+              realizeValue: 0,
+            };
+          mitraMap[mitraName].count += 1;
+          mitraMap[mitraName].billingValue += itemValue;
+          mitraMap[mitraName].realizeValue += itemRealize;
         });
 
-        // Mapping ke array untuk Recharts Pie (Aman tanpa overwrite linting ts)
+        tagihan.forEach((b: any) => {
+          const mitraBillingName = b.Mitra?.name || "Tanpa Mitra";
+          if (!mitraMap[mitraBillingName])
+            mitraMap[mitraBillingName] = {
+              count: 0,
+              billingValue: 0,
+              realizeValue: 0,
+            };
+          mitraMap[mitraBillingName].billingValue += b.value || 0;
+          mitraMap[mitraBillingName].realizeValue += b.realize_value || 0;
+        });
+
         setVisitStatusDist(
           Object.entries(statusMap).map(([name, data]) => ({
             name,
             ...data,
-            value: data.count, // 'value' ditempatkan paling akhir/terpisah untuk porsi besar busur PieChart
+            value: data.count,
           })),
         );
 
@@ -252,6 +261,16 @@ export default function DashboardCallReport() {
             name,
             ...data,
             value: data.count,
+          })),
+        );
+
+        // Pada Mitra, jika porsi busur Pie Chart ingin didasarkan pada besaran nominal "billingValue"
+        // (karena data counter/count mitra sering kali bernilai 0 di loop tagihan), ubah dataKey menjadi billingValue
+        setVisitMitraDist(
+          Object.entries(mitraMap).map(([name, data]) => ({
+            name,
+            ...data,
+            value: data.billingValue,
           })),
         );
       }
@@ -327,8 +346,8 @@ export default function DashboardCallReport() {
       </div>
 
       {/* --- ROW 2: TREN AKTIVITAS & RINGKASAN INVOICE GLOBAL --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-800">
@@ -342,7 +361,7 @@ export default function DashboardCallReport() {
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="w-full h-80">
+          <div className="w-full h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={trendData}
@@ -380,313 +399,398 @@ export default function DashboardCallReport() {
           </div>
         </div>
 
-        {/* Card Ringkasan Status Tagihan */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-800">
-              Ringkasan Status Tagihan
-            </h3>
-            <p className="text-xs text-slate-400">
-              Distribusi volume status invoice & komparasi aliran dana
-            </p>
+        {/* Ringkasan Status Tagihan */}
+        <div className="space-y-4">
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-5 rounded-2xl shadow-sm border border-emerald-200 flex justify-between items-start">
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                Sudah Bayar
+              </p>
+              <h3 className="text-2xl font-bold text-emerald-700 mt-1">
+                {summary.billingPaidCount}{" "}
+                <span className="text-sm font-normal text-emerald-600">
+                  Data
+                </span>
+              </h3>
+              <div className="mt-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-emerald-600">Tagihan:</span>
+                  <span className="font-semibold text-emerald-700">
+                    {IDRFormat(summary.billingPaidValue)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-emerald-600">Tertagih:</span>
+                  <span className="font-bold text-emerald-700">
+                    {IDRFormat(summary.billingPaidRealize)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="p-3 bg-emerald-200 text-emerald-700 rounded-lg">
+              <CheckCircle className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-full h-44 flex items-center justify-center my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={billingBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={75}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {billingBreakdown.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={STATUS_COLORS[entry.name]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`${value} Kasus`, "Volume"]} />
-              </PieChart>
-            </ResponsiveContainer>
+
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-5 rounded-2xl shadow-sm border border-amber-200 flex justify-between items-start">
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                Partial / Sebagian Bayar
+              </p>
+              <h3 className="text-2xl font-bold text-amber-700 mt-1">
+                {summary.billingPartialCount}{" "}
+                <span className="text-sm font-normal text-amber-600">Data</span>
+              </h3>
+              <div className="mt-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-amber-600">Tagihan:</span>
+                  <span className="font-semibold text-amber-700">
+                    {IDRFormat(summary.billingPartialValue)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-amber-600">Tertagih:</span>
+                  <span className="font-bold text-amber-700">
+                    {IDRFormat(summary.billingPartialRealize)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="p-3 bg-amber-200 text-amber-700 rounded-lg">
+              <DollarSign className="w-6 h-6" />
+            </div>
           </div>
-          <div className="space-y-3 border-t pt-4 border-slate-100">
-            <div className="flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
-              <span>Status (Kasus)</span>
-              <div className="flex gap-12">
-                <span className="w-24 text-right">Nilai Tagihan</span>
-                <span className="w-24 text-right">Tertagih</span>
+
+          <div className="bg-gradient-to-br from-red-50 to-red-100 p-5 rounded-2xl shadow-sm border border-red-200 flex justify-between items-start">
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-red-600 uppercase tracking-wider">
+                Belum Bayar
+              </p>
+              <h3 className="text-2xl font-bold text-red-700 mt-1">
+                {summary.billingUnpaidCount}{" "}
+                <span className="text-sm font-normal text-red-600">Data</span>
+              </h3>
+              <div className="mt-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-red-600">Tagihan:</span>
+                  <span className="font-semibold text-red-700">
+                    {IDRFormat(summary.billingUnpaidValue)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-red-600">Tertagih:</span>
+                  <span className="font-bold text-red-700">Rp 0</span>
+                </div>
               </div>
             </div>
-            <div className="flex justify-between items-center text-xs px-1 py-0.5 hover:bg-slate-50 rounded-lg transition-colors">
-              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                Sudah Bayar ({summary.billingPaidCount})
-              </span>
-              <div className="flex gap-4 text-right font-semibold">
-                <span className="w-24 text-slate-400 font-normal">
-                  {IDRFormat(summary.billingPaidValue)}
-                </span>
-                <span className="w-24 text-emerald-600">
-                  {IDRFormat(summary.billingPaidRealize)}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center text-xs px-1 py-0.5 hover:bg-slate-50 rounded-lg transition-colors">
-              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
-                Partial ({summary.billingPartialCount})
-              </span>
-              <div className="flex gap-4 text-right font-semibold">
-                <span className="w-24 text-slate-400 font-normal">
-                  {IDRFormat(summary.billingPartialValue)}
-                </span>
-                <span className="w-24 text-amber-500">
-                  {IDRFormat(summary.billingPartialRealize)}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center text-xs px-1 py-0.5 hover:bg-slate-50 rounded-lg transition-colors">
-              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-                <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
-                Belum Bayar ({summary.billingUnpaidCount})
-              </span>
-              <div className="flex gap-4 text-right font-semibold">
-                <span className="w-24 text-slate-400 font-normal">
-                  {IDRFormat(summary.billingUnpaidValue)}
-                </span>
-                <span className="w-24 text-red-500">
-                  {IDRFormat(summary.billingUnpaidRealize)}
-                </span>
-              </div>
+            <div className="p-3 bg-red-200 text-red-700 rounded-lg">
+              <Calendar className="w-6 h-6" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* --- ROW 3: DETIL PIE CHART DENGAN FINANSIAL FIX --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 1. Pie Chart: By Status Kunjungan */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <div className="mb-2 flex items-center gap-2">
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-              <Activity className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">
-                Kunjungan Berdasarkan Status
-              </h4>
-              <p className="text-[11px] text-slate-400">
-                Respon performa kasus di lapangan
-              </p>
-            </div>
-          </div>
-          <div className="w-full h-40 flex items-center justify-center my-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={visitStatusDist}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={60}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {visitStatusDist.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PIE_COLORS[index % PIE_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(val) => [`${val} Kasus`, "Volume"]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-2 border-t pt-3 border-slate-50 text-[11px]">
-            <div className="flex justify-between font-bold text-slate-400 uppercase tracking-wider px-0.5">
-              <span>Status (Kunjungan)</span>
-              <div className="flex gap-6">
-                <span className="w-16 text-right">Tagihan</span>
-                <span className="w-16 text-right">Tertagih</span>
+      {/* --- ROW 3: DETIL PIE CHART DISTRIBUSI KUNJUNGAN (2x2 GRID) --- */}
+      <div>
+        <h2 className="text-lg font-bold text-slate-800 mb-4">
+          Analisis Distribusi Kunjungan
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 1. Pie Chart: By Status Kunjungan */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <Activity className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  Kunjungan Berdasarkan Status
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Respon performa kasus di lapangan
+                </p>
               </div>
             </div>
-            {visitStatusDist.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center text-slate-600 font-medium py-0.5"
-              >
-                <span className="truncate max-w-25 flex items-center gap-1.5">
-                  <span
-                    className="w-2 h-2 rounded-full inline-block shrink-0"
-                    style={{
-                      backgroundColor: PIE_COLORS[idx % PIE_COLORS.length],
-                    }}
-                  ></span>
-                  {item.name} ({item.count})
-                </span>
-                <div className="flex gap-2 text-right font-semibold">
-                  <span className="w-20 text-slate-400 font-normal">
-                    {IDRFormat(item.billingValue)}
-                  </span>
-                  <span className="w-20 text-indigo-600">
-                    {IDRFormat(item.realizeValue)}
-                  </span>
-                </div>
+            <div className="w-full h-40 flex items-center justify-center my-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={visitStatusDist}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={60}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {visitStatusDist.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val) => [`${val} Kasus`, "Volume"]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2 border-t pt-2 border-slate-100 text-[10px]">
+              <div className="text-xs font-bold text-slate-600 px-0.5 py-1">
+                Ringkasan Per Status
               </div>
-            ))}
+              <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                {visitStatusDist.slice(0, 10).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-slate-600 py-0.5"
+                  >
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full inline-block"
+                        style={{
+                          backgroundColor: PIE_COLORS[idx % PIE_COLORS.length],
+                        }}
+                      ></span>
+                      <span className="truncate max-w-16">{item.name}</span>
+                      <span className="text-xs text-slate-400">
+                        ({item.count})
+                      </span>
+                    </span>
+                    <span className="text-slate-500 font-medium">
+                      {IDRFormat(item.realizeValue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* 2. Pie Chart: By Tujuan Kunjungan */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <div className="mb-2 flex items-center gap-2">
-            <div className="p-2 bg-sky-50 text-sky-600 rounded-lg">
-              <Target className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">
-                Kunjungan Berdasarkan Tujuan
-              </h4>
-              <p className="text-[11px] text-slate-400">
-                Objektif utama penugasan tim
-              </p>
-            </div>
-          </div>
-          <div className="w-full h-40 flex items-center justify-center my-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={visitPurposeDist}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={60}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {visitPurposeDist.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PIE_COLORS[(index + 2) % PIE_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(val) => [`${val} Kunjungan`, "Volume"]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-2 border-t pt-3 border-slate-50 text-[11px]">
-            <div className="flex justify-between font-bold text-slate-400 uppercase tracking-wider px-0.5">
-              <span>Tujuan</span>
-              <div className="flex gap-6">
-                <span className="w-16 text-right">Tagihan</span>
-                <span className="w-16 text-right">Tertagih</span>
+          {/* 2. Pie Chart: By Tujuan Kunjungan */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="p-2 bg-sky-50 text-sky-600 rounded-lg">
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  Kunjungan Berdasarkan Tujuan
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Objektif utama penugasan tim
+                </p>
               </div>
             </div>
-            {visitPurposeDist.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center text-slate-600 font-medium py-0.5"
-              >
-                <span className="truncate max-w-25 flex items-center gap-1.5">
-                  <span
-                    className="w-2 h-2 rounded-full inline-block shrink-0"
-                    style={{
-                      backgroundColor:
-                        PIE_COLORS[(idx + 2) % PIE_COLORS.length],
-                    }}
-                  ></span>
-                  {item.name} ({item.count})
-                </span>
-                <div className="flex gap-2 text-right font-semibold">
-                  <span className="w-20 text-slate-400 font-normal">
-                    {IDRFormat(item.billingValue)}
-                  </span>
-                  <span className="w-20 text-sky-600">
-                    {IDRFormat(item.realizeValue)}
-                  </span>
-                </div>
+            <div className="w-full h-40 flex items-center justify-center my-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={visitPurposeDist}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={60}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {visitPurposeDist.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[(index + 2) % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val) => [`${val} Kunjungan`, "Volume"]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2 border-t pt-2 border-slate-100 text-[10px]">
+              <div className="text-xs font-bold text-slate-600 px-0.5 py-1">
+                Ringkasan Per Tujuan
               </div>
-            ))}
+              <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                {visitPurposeDist.slice(0, 10).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-slate-600 py-0.5"
+                  >
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full inline-block"
+                        style={{
+                          backgroundColor:
+                            PIE_COLORS[(idx + 2) % PIE_COLORS.length],
+                        }}
+                      ></span>
+                      <span className="truncate max-w-16">{item.name}</span>
+                      <span className="text-xs text-slate-400">
+                        ({item.count})
+                      </span>
+                    </span>
+                    <span className="text-slate-500 font-medium">
+                      {IDRFormat(item.realizeValue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* 3. Pie Chart: By Jenis / Kategori Kunjungan */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <div className="mb-2 flex items-center gap-2">
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-              <Bookmark className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">
-                Kunjungan Berdasarkan Jenis
-              </h4>
-              <p className="text-[11px] text-slate-400">
-                Klasifikasi tipe divisi operasional
-              </p>
-            </div>
-          </div>
-          <div className="w-full h-40 flex items-center justify-center my-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={visitCategoryDist}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={60}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {visitCategoryDist.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={PIE_COLORS[(index + 4) % PIE_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(val) => [`${val} Data`, "Volume"]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-2 border-t pt-3 border-slate-50 text-[11px]">
-            <div className="flex justify-between font-bold text-slate-400 uppercase tracking-wider px-0.5">
-              <span>Jenis Kategori</span>
-              <div className="flex gap-6">
-                <span className="w-16 text-right">Tagihan</span>
-                <span className="w-16 text-right">Tertagih</span>
+          {/* 3. Pie Chart: By Jenis / Kategori Kunjungan */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                <Bookmark className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  Kunjungan Berdasarkan Jenis
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Klasifikasi tipe divisi operasional
+                </p>
               </div>
             </div>
-            {visitCategoryDist.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center text-slate-600 font-medium py-0.5"
-              >
-                <span className="truncate max-w-25 flex items-center gap-1.5">
-                  <span
-                    className="w-2 h-2 rounded-full inline-block shrink-0"
-                    style={{
-                      backgroundColor:
-                        PIE_COLORS[(idx + 4) % PIE_COLORS.length],
-                    }}
-                  ></span>
-                  {item.name} ({item.count})
-                </span>
-                <div className="flex gap-2 text-right font-semibold">
-                  <span className="w-20 text-slate-400 font-normal">
-                    {IDRFormat(item.billingValue)}
-                  </span>
-                  <span className="w-20 text-purple-600">
-                    {IDRFormat(item.realizeValue)}
-                  </span>
-                </div>
+            <div className="w-full h-40 flex items-center justify-center my-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={visitCategoryDist}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={60}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {visitCategoryDist.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[(index + 4) % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val) => [`${val} Data`, "Volume"]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2 border-t pt-2 border-slate-100 text-[10px]">
+              <div className="text-xs font-bold text-slate-600 px-0.5 py-1">
+                Ringkasan Per Kategori
               </div>
-            ))}
+              <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                {visitCategoryDist.slice(0, 10).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-slate-600 py-0.5"
+                  >
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full inline-block"
+                        style={{
+                          backgroundColor:
+                            PIE_COLORS[(idx + 4) % PIE_COLORS.length],
+                        }}
+                      ></span>
+                      <span className="truncate max-w-16">{item.name}</span>
+                      <span className="text-xs text-slate-400">
+                        ({item.count})
+                      </span>
+                    </span>
+                    <span className="text-slate-500 font-medium">
+                      {IDRFormat(item.realizeValue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Pie Chart: By Mitra (DIKEMBALIKAN AKTIF & DIUBAH) */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                <Bookmark className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  Tagihan Berdasarkan Mitra
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Proporsi nilai nominal piutang per partnership
+                </p>
+              </div>
+            </div>
+            <div className="w-full h-40 flex items-center justify-center my-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={visitMitraDist}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={60}
+                    paddingAngle={3}
+                    dataKey="value" // Menggunakan billingValue dari mapping di atas
+                  >
+                    {visitMitraDist.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[(index + 6) % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val) => [
+                      IDRFormat(Number(val)),
+                      "Total Tagihan",
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2 border-t pt-2 border-slate-100 text-[10px]">
+              <div className="text-xs font-bold text-slate-600 px-0.5 py-1">
+                Detail Keuangan Per Mitra
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
+                {visitMitraDist.slice(0, 10).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col gap-0.5 text-slate-600 border-b border-slate-50 pb-1 last:border-0"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-1 font-medium text-slate-700">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full inline-block"
+                          style={{
+                            backgroundColor:
+                              PIE_COLORS[(idx + 6) % PIE_COLORS.length],
+                          }}
+                        ></span>
+                        <span className="truncate max-w-32">{item.name}</span>
+                      </span>
+                    </div>
+                    {/* Menampilkan kedua value (Tagihan) dan realizeValue (Dana Tertagih) */}
+                    <div className="flex justify-between pl-2.5 text-[9.5px]">
+                      <span className="text-slate-400">Tagihan (Value):</span>
+                      <span className="text-slate-600 font-medium">
+                        {IDRFormat(item.billingValue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between pl-2.5 text-[9.5px]">
+                      <span className="text-emerald-500 font-medium">
+                        Tertagih (Realize):
+                      </span>
+                      <span className="text-emerald-600 font-bold">
+                        {IDRFormat(item.realizeValue)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

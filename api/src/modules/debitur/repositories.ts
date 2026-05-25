@@ -170,6 +170,7 @@ export const PATCH = async (
           { id: id as string },
           { nik: id as string },
           { cif: id as string },
+          { fullname: id as string },
         ],
       },
       include: {

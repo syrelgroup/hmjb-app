@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  LogIn,
-  KeyRound,
-  Building2,
-  EyeOff,
-  Eye,
-  LoaderPinwheel,
-} from "lucide-react";
+import { LogIn, KeyRound, EyeOff, Eye, LoaderPinwheel } from "lucide-react";
 import { apps, type AppType } from "../libs/list_app";
 import api from "../libs/api";
 import useContext from "../libs/context";
@@ -75,7 +68,7 @@ function LoginPage() {
         >
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <Building2 className="w-9 h-9" />
+              {/* <Building2 className="w-9 h-9" />
               <div className="flex flex-col">
                 <h1 className="text-2xl font-bold leading-tight">
                   BPR HASAMITRA
@@ -83,7 +76,8 @@ function LoginPage() {
                 <p className="text-xs font-light tracking-widest uppercase opacity-80">
                   Jawa Barat
                 </p>
-              </div>
+              </div> */}
+              <img src="/assets/logo.png" width={"50%"} />
             </div>
 
             {/* <h2 className="text-3xl font-extrabold mb-10 leading-snug">

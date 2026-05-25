@@ -104,6 +104,13 @@ export const menus: IMenu[] = [
         can_access: ["read"],
       },
       {
+        name: "Laporan",
+        path: "/app/earsip/laporan",
+        icon: <FolderArchive size={15} />,
+        need_access: true,
+        can_access: ["read", "download"],
+      },
+      {
         name: "Data Nasabah",
         path: "/app/earsip/debitur",
         icon: <FolderArchive size={15} />,
@@ -161,6 +168,13 @@ export const menus: IMenu[] = [
         can_access: ["read"],
       },
       {
+        name: "Laporan Kredit",
+        path: "/app/callreport/laporan",
+        icon: <FileText size={15} />,
+        need_access: true,
+        can_access: ["read", "download"],
+      },
+      {
         name: "Jenis Kunjungan",
         path: "/app/callreport/category",
         icon: <Hash size={15} />,
@@ -196,7 +210,7 @@ export const menus: IMenu[] = [
         can_access: ["read", "write", "update", "delete", "download"],
       },
       {
-        name: "Debitur",
+        name: "Daftar Tagihan",
         path: "/app/callreport/debitur",
         icon: <Calendars size={15} />,
         need_access: true,

@@ -49,6 +49,8 @@ import DataInsurance from "./app/Insurance";
 import DeductionPage from "./absensi/Deduction";
 import DataBilling from "./creport/Billing";
 import WelcomePage from "./app/WelcomePage";
+import LaporanEarsip from "./earsip/LaporanEarsip";
+import LaporanKredit from "./creport/LaporanKredit";
 
 function AppRouter() {
   const path = window.location.pathname;
@@ -81,6 +83,7 @@ function AppRouter() {
 
           {/* EARSIP */}
           <Route path="/earsip/" element={<DashboardEarsip />} />
+          <Route path="/earsip/laporan" element={<LaporanEarsip />} />
           <Route path="/earsip/product_type" element={<DataProductType />} />
           <Route
             path="/earsip/product_type/upsert"
@@ -118,6 +121,7 @@ function AppRouter() {
           {/* CALLREPORT */}
           <Route path="/callreport/" element={<DashboardCallReport />} />
           <Route path="/callreport/debitur" element={<DebiturCallReport />} />
+          <Route path="/callreport/laporan" element={<LaporanKredit />} />
           <Route path="/callreport/category" element={<DataVisitCategory />} />
           <Route path="/callreport/status" element={<DataVisitStatus />} />
           <Route path="/callreport/purpose" element={<DataVisitPurpose />} />
