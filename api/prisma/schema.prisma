@@ -394,6 +394,7 @@ model Visit {
   date_plan     DateTime
   date_action   DateTime?
   geo           String?
+  col           String?
   files         String?   @db.Text
   next_action   String?   @db.Text
 

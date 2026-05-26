@@ -1,9 +1,9 @@
-import { App, Button, Card, Col, Divider, message, Row, Spin } from "antd";
+import { App, Button, Card, Col, Divider, Row, Spin } from "antd";
 import type {
   IComments,
   IDebitur,
   IMitra,
-  ISubType,
+  ISubmission,
   IUser,
   IVisit,
   IVisitCategory,
@@ -12,7 +12,7 @@ import type {
 } from "../../libs/interface";
 import { IDRFormat, IDRToNumber, InputUtil } from "../utils/utilForm";
 import { InputFileUploadVisitAuto } from "../utils/InputFileUploadVisitAuto";
-import { PlusCircleOutlined, SearchOutlined } from "@ant-design/icons";
+import { PlusCircleOutlined } from "@ant-design/icons";
 import { BookPlus, FolderOpen, MessageCircle, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import moment from "moment";
@@ -25,11 +25,11 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
   const [visitCategories, setVisitCategories] = useState<IVisitCategory[]>([]);
   const [visitStatuses, setVisitStatuses] = useState<IVisitStatus[]>([]);
   const [visitPurposes, setVisitPurposes] = useState<IVisitPurpose[]>([]);
-  const [subType, setSubType] = useState<ISubType[]>([]);
   const [Mitras, setMitras] = useState<IMitra[]>([]);
+  const [submissions, setSubmissions] = useState<ISubmission[]>([]);
+  const [debts, setDebts] = useState<IDebitur[]>([]);
 
   const [users, setUsers] = useState<IUser[]>([]);
-  const [search, setSearch] = useState("");
   const [dateErrors, setDateErrors] = useState<{ [key: string]: string }>({});
   const { user, hasAccess } = useContext((state: any) => state);
   const [data, setData] = useState(
@@ -43,12 +43,13 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       await api
         .request({
           method: "GET",
-          url: "/sub_type",
+          url: "/submission",
         })
-        .then((res) => setSubType(res.data.data));
+        .then((res) => setSubmissions(res.data.data));
       await api
         .request({
           method: "GET",
@@ -81,6 +82,14 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
           params: { limit: 1000 },
         })
         .then((res) => setMitras(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: "/debitur",
+          params: { limit: 10000 },
+        })
+        .then((res) => setDebts(res.data.data));
+      setLoading(false);
     })();
   }, []);
 
@@ -140,31 +149,31 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
     setLoading(false);
   };
 
-  const handleSearch = async () => {
-    setLoading(true);
-    await api
-      .request({
-        url: "/debitur",
-        method: "PATCH",
-        params: { id: search },
-      })
-      .then((res) => {
-        if (res.status === 200) {
-          setData((prev) => ({
-            ...prev,
-            Debitur: res.data.data,
-            debiturId: res.data.data.id,
-          }));
-        } else {
-          message.error("Data tidak ditemukan");
-        }
-      })
-      .catch((err) => {
-        console.log(err);
-        message.error("Data tidak ditemukan");
-      });
-    setLoading(false);
-  };
+  // const handleSearch = async () => {
+  //   setLoading(true);
+  //   await api
+  //     .request({
+  //       url: "/debitur",
+  //       method: "PATCH",
+  //       params: { id: search },
+  //     })
+  //     .then((res) => {
+  //       if (res.status === 200) {
+  //         setData((prev) => ({
+  //           ...prev,
+  //           Debitur: res.data.data,
+  //           debiturId: res.data.data.id,
+  //         }));
+  //       } else {
+  //         message.error("Data tidak ditemukan");
+  //       }
+  //     })
+  //     .catch((err) => {
+  //       console.log(err);
+  //       message.error("Data tidak ditemukan");
+  //     });
+  //   setLoading(false);
+  // };
 
   const getGeoLocation = () => {
     navigator.geolocation.getCurrentPosition(
@@ -205,19 +214,43 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
         <Row gutter={[16, 16]}>
           <Col xs={12} md={8}>
             <InputUtil
-              label="CIF/NIK/Nama"
-              type="text"
-              value={search}
-              onchage={(e: string) => setSearch(e)}
-              suffix={
-                <Button
-                  icon={<SearchOutlined />}
-                  size="small"
-                  type="primary"
-                  onClick={() => handleSearch()}
-                  loading={loading}
-                ></Button>
-              }
+              label="Nasabah"
+              type="option"
+              value={data.debiturId}
+              options={debts.map((d) => ({
+                label: `${d.fullname} (${d.cif})`,
+                value: d.id,
+              }))}
+              onchage={(e: string) => {
+                const find = debts.find((d) => d.id === e);
+                setData({
+                  ...data,
+                  Debitur: find ? find : data.Debitur,
+                  debiturId: e,
+                });
+                if (find) {
+                  setSubmissions(find.Submission);
+                  setMitras(
+                    find.Submission.flatMap((s) => s.Mitra) as IMitra[],
+                  );
+                }
+              }}
+            />
+          </Col>
+          <Col xs={12} md={8}>
+            <InputUtil
+              label="Mitra"
+              required
+              value={data.mitraId}
+              onchage={(e: string) => {
+                setData({
+                  ...data,
+                  mitraId: e,
+                  Mitra: Mitras.find((m) => m.id === e) as IMitra,
+                });
+              }}
+              type="option"
+              options={Mitras.map((s) => ({ label: s.name, value: s.id }))}
             />
           </Col>
           <Col xs={12} md={8}>
@@ -310,8 +343,18 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
               type="text"
             />
           </Col>
-
           <Col xs={12} md={8}>
+            <InputUtil
+              label="Email"
+              value={data.col}
+              onchage={(e: string) => {
+                setData({ ...data, col: e });
+              }}
+              type="text"
+            />
+          </Col>
+
+          {/* <Col xs={12} md={8}>
             <InputUtil
               label="Jenis Pemohon"
               required
@@ -325,23 +368,7 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
               type="option"
               options={subType.map((s) => ({ label: s.name, value: s.id }))}
             />
-          </Col>
-          <Col xs={12} md={8}>
-            <InputUtil
-              label="Mitra"
-              required
-              value={data.mitraId}
-              onchage={(e: string) => {
-                setData({
-                  ...data,
-                  Mitra: Mitras.find((m) => m.id === e) as IMitra,
-                  mitraId: e,
-                });
-              }}
-              type="option"
-              options={Mitras.map((s) => ({ label: s.name, value: s.id }))}
-            />
-          </Col>
+          </Col> */}
         </Row>
         <Card
           title={
@@ -501,6 +528,22 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
                 type="text"
               />
             </Col>
+            {submissions.length !== 0 && (
+              <Col xs={12} md={8}>
+                <InputUtil
+                  label="Data Rekening"
+                  value={data.submissionId}
+                  options={submissions.map((s) => ({
+                    label: `${s.id} (${s.Product.name}-${s.Product.ProductType?.name})`,
+                    value: s.id,
+                  }))}
+                  onchage={(e: string) => {
+                    setData({ ...data, submissionId: e });
+                  }}
+                  type="option"
+                />
+              </Col>
+            )}
             <Col xs={12} md={8}>
               <InputUtil
                 label="Hasil Kunjungan"
@@ -607,6 +650,15 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
               <InputUtil
                 label="Email"
                 value={data.User?.email}
+                type="text"
+                disabled
+              />
+            </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Kolektibilitas"
+                value={data.col}
+                onchage={(e: string) => setData({ ...data, col: e })}
                 type="text"
                 disabled
               />

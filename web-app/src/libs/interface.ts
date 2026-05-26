@@ -478,6 +478,7 @@ export interface IVisit {
   coments?: IComments[];
   date_action?: Date | null;
   geo?: string | null;
+  col?: string | null;
   files?: IFileVisit[];
   next_action?: string;
 

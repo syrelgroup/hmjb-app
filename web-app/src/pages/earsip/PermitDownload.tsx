@@ -482,6 +482,13 @@ const UpsertData = ({
                   label: `${s.Debitur.fullname} (${s.id})`,
                   value: s.id,
                 }))}
+                allowClear
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+                showSearch
                 style={{ width: "100%" }}
                 onChange={(e) =>
                   setData({

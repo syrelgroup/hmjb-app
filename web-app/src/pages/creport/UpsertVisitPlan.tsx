@@ -4,7 +4,6 @@ import type {
   IDebitur,
   IMitra,
   ISubmission,
-  ISubType,
   IUser,
   IVisit,
   IVisitCategory,
@@ -12,7 +11,7 @@ import type {
 } from "../../libs/interface";
 import { IDRFormat, IDRToNumber, InputUtil } from "../utils/utilForm";
 import { InputFileUploadVisitAuto } from "../utils/InputFileUploadVisitAuto";
-import { PlusCircleOutlined, SearchOutlined } from "@ant-design/icons";
+import { PlusCircleOutlined } from "@ant-design/icons";
 import { BookPlus, FolderOpen, MessageCircle, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import moment from "moment";
@@ -24,13 +23,13 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
   const [loading, setLoading] = useState(false);
   const [visitCategories, setVisitCategories] = useState<IVisitCategory[]>([]);
   const [visitPurposes, setVisitPurposes] = useState<IVisitPurpose[]>([]);
-  const [subType, setSubType] = useState<ISubType[]>([]);
   const [Mitras, setMitras] = useState<IMitra[]>([]);
+  const [debts, setDebts] = useState<IDebitur[]>([]);
   const [submissions, setSubmissions] = useState<ISubmission[]>(
     record ? record.Debitur.Submission : [],
   );
   const [users, setUsers] = useState<IUser[]>([]);
-  const [search, setSearch] = useState("");
+  // const [search, setSearch] = useState("");
   const [dateErrors, setDateErrors] = useState<{ [key: string]: string }>({});
   const { user, hasAccess } = useContext((state: any) => state);
   const [data, setData] = useState(
@@ -44,12 +43,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
 
   useEffect(() => {
     (async () => {
-      await api
-        .request({
-          method: "GET",
-          url: "/sub_type",
-        })
-        .then((res) => setSubType(res.data.data));
+      setLoading(true);
       await api
         .request({
           method: "GET",
@@ -76,6 +70,14 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
           params: { limit: 1000 },
         })
         .then((res) => setMitras(res.data.data));
+      await api
+        .request({
+          method: "GET",
+          url: "/debitur",
+          params: { limit: 10000 },
+        })
+        .then((res) => setDebts(res.data.data));
+      setLoading(false);
     })();
   }, []);
 
@@ -144,34 +146,34 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
     setLoading(false);
   };
 
-  const handleSearch = async () => {
-    setLoading(true);
-    await api
-      .request({
-        url: "/debitur",
-        method: "PATCH",
-        params: { id: search },
-      })
-      .then((res) => {
-        if (res.status === 200) {
-          setData((prev) => ({
-            ...prev,
-            Debitur: res.data.data,
-            debiturId: res.data.data.id,
-          }));
-          if (res.data.data.Submission.length > 0) {
-            setSubmissions(res.data.data.Submission);
-          }
-        } else {
-          alert(res.data.msg || "Data tidak ditemukan");
-        }
-      })
-      .catch((err) => {
-        console.log(err);
-        alert(err.message || "Internal Server Error");
-      });
-    setLoading(false);
-  };
+  // const handleSearch = async () => {
+  //   setLoading(true);
+  //   await api
+  //     .request({
+  //       url: "/debitur",
+  //       method: "PATCH",
+  //       params: { id: search },
+  //     })
+  //     .then((res) => {
+  //       if (res.status === 200) {
+  //         setData((prev) => ({
+  //           ...prev,
+  //           Debitur: res.data.data,
+  //           debiturId: res.data.data.id,
+  //         }));
+  //         if (res.data.data.Submission.length > 0) {
+  //           setSubmissions(res.data.data.Submission);
+  //         }
+  //       } else {
+  //         message.error("Data tidak ditemukan");
+  //       }
+  //     })
+  //     .catch((err) => {
+  //       console.log(err);
+  //       message.error("Data tidak ditemukan");
+  //     });
+  //   setLoading(false);
+  // };
 
   return (
     <Spin spinning={loading}>
@@ -189,19 +191,43 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
         <Row gutter={[16, 16]}>
           <Col xs={12} md={8}>
             <InputUtil
-              label="CIF atau NIK"
-              type="text"
-              value={search}
-              onchage={(e: string) => setSearch(e)}
-              suffix={
-                <Button
-                  icon={<SearchOutlined />}
-                  size="small"
-                  type="primary"
-                  onClick={() => handleSearch()}
-                  loading={loading}
-                ></Button>
-              }
+              label="Nasabah"
+              type="option"
+              value={data.debiturId}
+              options={debts.map((d) => ({
+                label: `${d.fullname} (${d.cif})`,
+                value: d.id,
+              }))}
+              onchage={(e: string) => {
+                const find = debts.find((d) => d.id === e);
+                setData({
+                  ...data,
+                  Debitur: find ? find : data.Debitur,
+                  debiturId: e,
+                });
+                if (find) {
+                  setSubmissions(find.Submission);
+                  setMitras(
+                    find.Submission.flatMap((s) => s.Mitra) as IMitra[],
+                  );
+                }
+              }}
+            />
+          </Col>
+          <Col xs={12} md={8}>
+            <InputUtil
+              label="Mitra"
+              required
+              value={data.mitraId}
+              onchage={(e: string) => {
+                setData({
+                  ...data,
+                  mitraId: e,
+                  Mitra: Mitras.find((m) => m.id === e) as IMitra,
+                });
+              }}
+              type="option"
+              options={Mitras.map((s) => ({ label: s.name, value: s.id }))}
             />
           </Col>
           <Col xs={12} md={8}>
@@ -294,35 +320,14 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
               type="text"
             />
           </Col>
-
           <Col xs={12} md={8}>
             <InputUtil
-              label="Jenis Pemohon"
-              required
-              value={data.Debitur?.submissionTypeId}
+              label="Kolektibilitas"
+              value={data.col}
               onchage={(e: string) => {
-                setData({
-                  ...data,
-                  Debitur: { ...data.Debitur, submissionTypeId: e },
-                });
+                setData({ ...data, col: e });
               }}
-              type="option"
-              options={subType.map((s) => ({ label: s.name, value: s.id }))}
-            />
-          </Col>
-          <Col xs={12} md={8}>
-            <InputUtil
-              label="Mitra"
-              required
-              value={data.mitraId}
-              onchage={(e: string) => {
-                setData({
-                  ...data,
-                  Mitra: Mitras.find((m) => m.id === e) as IMitra,
-                });
-              }}
-              type="option"
-              options={Mitras.map((s) => ({ label: s.name, value: s.id }))}
+              type="text"
             />
           </Col>
         </Row>
@@ -510,6 +515,15 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
               <InputUtil
                 label="Email"
                 value={data.User?.email}
+                type="text"
+                disabled
+              />
+            </Col>
+            <Col xs={12} md={8}>
+              <InputUtil
+                label="Kolektibilitas"
+                value={data.col}
+                onchage={(e: string) => setData({ ...data, col: e })}
                 type="text"
                 disabled
               />

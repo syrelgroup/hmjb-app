@@ -34,7 +34,7 @@ export const GET = async (req, res, next) => {
                             ? { userId: req.user?.id }
                             : {}),
                     },
-                    include: { Product: { include: { ProductType: true } } },
+                    include: { Product: { include: { ProductType: true } }, Mitra: true },
                 },
                 Visit: {
                     where: {

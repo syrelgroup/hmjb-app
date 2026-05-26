@@ -309,7 +309,7 @@ const PermitDelete = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Permohonan Download Berkas</h1>
+        <h1 className="text-2xl font-bold">Permohonan Hapus Berkas</h1>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -454,7 +454,7 @@ const UpsertData = ({
     <Modal
       open={open}
       onCancel={() => setOpen(false)}
-      title="UPSERT PERMOHONAN DOWNLOAD"
+      title="UPSERT PERMOHONAN HAPUS"
       style={{ top: 20 }}
       width={1000}
       onOk={() => handleSubmit()}
@@ -483,6 +483,14 @@ const UpsertData = ({
                   label: `${s.Debitur.fullname} (${s.id})`,
                   value: s.id,
                 }))}
+                allowClear
+                showSearch
+                optionLabelProp="label"
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
                 style={{ width: "100%" }}
                 onChange={(e) =>
                   setData({
@@ -654,7 +662,7 @@ const ProsesPermohonan = ({
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <p className="border-b border-dashed mb-2">
-              Detail Permohonan Download
+              Detail Permohonan Hapus
             </p>
             <InputUtil
               disabled
@@ -812,7 +820,7 @@ const ProsesPermohonan = ({
           </div>
           <div className="flex-1">
             <p className="border-b border-dashed mb-2">
-              Proses Permohonan Download
+              Proses Permohonan Hapus
             </p>
             <InputUtil
               label="Catatan"
