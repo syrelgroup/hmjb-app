@@ -225,6 +225,8 @@ export interface IBilling {
   pkk: number | string;
   tung_pkk: number | string;
   tung_bga: number | string;
+  start_at: Date;
+  end_at: Date;
 
   status: boolean;
   created_at: Date;
