@@ -404,7 +404,7 @@ export default function DataBilling() {
             { label: "6", value: "6" },
             { label: "KECUALIKAN WO", value: "NOT_WO" },
             { label: "NPL", value: "NPL" },
-            { label: "LAR", value: "LAT" },
+            { label: "LAR", value: "LAR" },
           ]}
           onChange={(val) => setPageprops({ ...pageprops, col: val, page: 1 })}
           allowClear
