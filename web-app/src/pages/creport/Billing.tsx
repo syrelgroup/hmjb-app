@@ -402,6 +402,9 @@ export default function DataBilling() {
             { label: "4", value: "4" },
             { label: "5", value: "5" },
             { label: "6", value: "6" },
+            { label: "KECUALIKAN WO", value: "NOT_WO" },
+            { label: "NPL", value: "NPL" },
+            { label: "LAR", value: "LAT" },
           ]}
           onChange={(val) => setPageprops({ ...pageprops, col: val, page: 1 })}
           allowClear
@@ -500,6 +503,9 @@ export default function DataBilling() {
                     nominal_realisasi: d.realize_value,
                     tanggal_tagih: moment(d.bill_date).format("DD/MM/YYYY"),
                     status: d.bill_status,
+                    periode: moment(d.periode).format("MMYYYY"),
+                    col: d.col,
+                    sisapokok: d.pkk,
                     ao: d.User.fullname,
                   })),
                   "data_tagihan",

@@ -46,7 +46,13 @@ export const GET = async (req: Request, res: Response, next: NextFunction) => {
     ...(mitraId && { mitraId: mitraId as string }),
     ...(productId && { productId: productId as string }),
     ...(bill_status && { bill_status: bill_status as EBill }),
-    ...(col && { col: { contains: col as string } }),
+    ...(col && col === "NOT_WO" && { col: { not: "6" } }),
+    ...(col && col === "NPL" && { col: { in: ["3", "4", "5"] } }),
+    ...(col && col === "LAR" && { col: { in: ["2", "3", "4", "5"] } }),
+    ...(col &&
+      !["NOT_WO", "NPL", "LAR"].includes(col as string) && {
+        col: { contains: col as string },
+      }),
     ...(backdate && {
       periode: {
         gte: moment((backdate as string).split(",")[0])
