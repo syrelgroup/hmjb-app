@@ -20,6 +20,7 @@ import moment from "moment";
 import api from "../../libs/api";
 import useContext from "../../libs/context";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function UpsertVisit({ record }: { record?: IVisit }) {
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,7 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
   const [dateErrors, setDateErrors] = useState<{ [key: string]: string }>({});
 
   const { user, hasAccess } = useContext((state: any) => state);
+  const navigate = useNavigate();
 
   // Loading states untuk debounce search
   const [fetchingDebts, setFetchingDebts] = useState(false);
@@ -198,9 +200,16 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
       })
       .then(async (res) => {
         if (res.status === 201 || res.status === 200) {
-          modal.success({ title: "BERHASIL", content: res.data.msg });
+          modal.success({
+            title: "BERHASIL",
+            content: res.data.msg,
+            onOk: () => navigate("/dashboard"),
+          });
         } else {
-          modal.error({ title: "ERROR", content: res.data.msg });
+          modal.error({
+            title: "ERROR",
+            content: res.data.msg,
+          });
         }
       })
       .catch((err) => {

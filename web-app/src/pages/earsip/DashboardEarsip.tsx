@@ -164,12 +164,12 @@ export default function DashboardEarsip() {
 
           if (s.flagging_status === "NON_PENSIUNAN") return null;
 
+          if (s.guarantee_status !== "PENDING") return "DITERIMA";
           if (!s.guarantee_date) {
             return "NOT SET";
           }
 
           // Data yang sudah FLAGGING dianggap sudah diterima
-          if (s.guarantee_status !== "PENDING") return "DITERIMA";
 
           const guaranteeDate = moment(s.guarantee_date);
 
