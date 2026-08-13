@@ -352,7 +352,9 @@ export default function DashboardEarsip() {
           <Percent className="w-4 h-4 text-emerald-500" />
           <span className="text-xs font-semibold text-slate-600">
             Digital Archive Compliance:{" "}
-            <b className="text-emerald-600">{globalMetrics.complianceRate}%</b>
+            <b className="text-emerald-600">
+              {globalMetrics.complianceRate.toFixed(2)}%
+            </b>
           </span>
         </div>
       </div>

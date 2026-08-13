@@ -458,11 +458,14 @@ export const DashboardEarsip = async (req: Request, res: Response) => {
                 guarantee_date: true,
                 mitraId: true,
                 insuranceId: true,
+                Files: { select: { name: true } },
               },
             },
           },
         },
-        ProductTypeFile: true,
+        ProductTypeFile: {
+          select: { id: true, name: true, Files: { select: { name: true } } },
+        },
       },
     }),
 

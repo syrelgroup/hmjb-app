@@ -559,7 +559,7 @@ const ProsesPeminjamanJaminan = ({
     <Modal
       open={open}
       onCancel={() => !loading && setOpen(false)}
-      destroyOnClose // Lebih baik gunakan destroyOnClose agar form bersih saat dibuka kembali
+      destroyOnHidden // Lebih baik gunakan destroyOnClose agar form bersih saat dibuka kembali
       title="Persetujuan Peminjaman Jaminan"
       confirmLoading={loading}
       onOk={handleProses}
