@@ -203,7 +203,7 @@ export default function UpsertVisit({ record }: { record?: IVisit }) {
           modal.success({
             title: "BERHASIL",
             content: res.data.msg,
-            onOk: () => navigate("/dashboard"),
+            onOk: () => navigate(-1),
           });
         } else {
           modal.error({

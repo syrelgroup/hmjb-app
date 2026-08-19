@@ -1,7 +1,9 @@
 import {
+  App,
   Button,
   DatePicker,
   Input,
+  Modal,
   Popover,
   Select,
   Table,
@@ -55,7 +57,7 @@ export default function DataVisitPlan() {
     process: false,
     record: undefined,
   });
-
+  const { modal } = App.useApp();
   const { hasAccess } = useContext((state: any) => state);
 
   const [subTypes, setSubTypes] = useState<ISubType[]>([]);
@@ -551,6 +553,66 @@ export default function DataVisitPlan() {
           }}
         />
       </div>
+      {action.delete && action.record && (
+        <DeleteData
+          open={action.delete}
+          setOpen={(val: boolean) =>
+            setAction((prev) => ({ ...prev, delete: val, record: undefined }))
+          }
+          record={action.record}
+          getData={getData}
+          hook={modal}
+          key={"delete" + action.record.id}
+        />
+      )}
     </div>
   );
 }
+
+const DeleteData = ({ open, setOpen, record, getData, hook }: any) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const res = await api.request({
+        url: import.meta.env.VITE_API_URL + "/visit?id=" + record?.id,
+        method: "DELETE",
+        headers: { "Content-Type": "Application/json" },
+      });
+
+      if (res.status === 201 || res.status === 200) {
+        hook.success({ title: "BERHASIL", content: res.data.msg });
+        setOpen(false);
+        getData && (await getData());
+      } else {
+        hook.error({ title: "ERROR", content: res.data.msg });
+      }
+    } catch (err: any) {
+      console.log(err);
+      hook.error({
+        title: "ERROR",
+        content: err.message || "Internal Server Error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="Konfirmasi Hapus"
+      onCancel={() => setOpen(false)}
+      onOk={handleSubmit}
+      okButtonProps={{ loading: loading, danger: true }} // Menambahkan danger (warna merah)
+    >
+      <div className="p-5">
+        <p>
+          Konfirmasi hapus data rencana kunjungan debitur{" "}
+          <b>{record.Debitur?.fullname}</b>?
+        </p>
+      </div>
+    </Modal>
+  );
+};

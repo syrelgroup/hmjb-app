@@ -18,7 +18,7 @@ import { useEffect, useState, useRef } from "react"; // Tambahkan useRef
 import moment from "moment";
 import api from "../../libs/api";
 import useContext from "../../libs/context";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
   const [loading, setLoading] = useState(false);
@@ -43,6 +43,7 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
   const debounceDebt = useRef<NodeJS.Timeout | null>(null);
   const debounceMitra = useRef<NodeJS.Timeout | null>(null);
   const debounceUser = useRef<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
 
   const [data, setData] = useState(
     record || {
@@ -199,7 +200,11 @@ export default function UpsertVisitPlan({ record }: { record?: IVisit }) {
       })
       .then(async (res) => {
         if (res.status === 201 || res.status === 200) {
-          modal.success({ title: "BERHASIL", content: res.data.msg });
+          modal.success({
+            title: "BERHASIL",
+            content: res.data.msg,
+            onOk: () => navigate(-1),
+          });
         } else {
           modal.error({ title: "ERROR", content: res.data.msg });
         }
